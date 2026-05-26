@@ -545,11 +545,14 @@ function render() {
   renderNav();
 
   switch (currentTab) {
-    case 'main':    card.innerHTML = renderMain(kin, tone, seal); break;
-    case 'oracle':  card.innerHTML = renderOracle(kin); break;
-    case 'moon':    card.innerHTML = renderMoon(); break;
-    case 'wave':    card.innerHTML = renderWave(kin, tone); break;
+    case 'main':
+      card.innerHTML = renderMain(kin, tone, seal)
+        + renderOracle(kin)
+        + renderWave(kin, tone)
+        + renderMoon();
+      break;
     case 'tzolkin': card.innerHTML = renderTzolkin(kin); break;
+    case 'personal': showMyKinModal(); card.innerHTML = ''; break;
   }
 
   // Bind dynamic events after render

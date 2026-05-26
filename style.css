@@ -299,15 +299,15 @@ body {
   border: none;
   background: none;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
-  padding: 10px 4px;
+  padding: 12px 8px;
   cursor: pointer;
   transition: all .2s;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 .tab:active { transform: scale(.95); }
-.tab.active { color: var(--accent); background: rgba(233,69,96,.1); }
+.tab.active { color: var(--accent); background: rgba(233,69,96,.12); }
 
 /* Wave start banner */
 .wave-banner {
