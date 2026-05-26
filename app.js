@@ -290,7 +290,14 @@ function renderMain(kin, tone, seal) {
       <p>▸ СУТЬ: ${sealInfo.essence_ru}</p>
       <p>▸ СИЛА: ${sealInfo.power_ru}</p>
       <p>▸ ДЕЙСТВИЕ: ${sealInfo.action_ru}</p>
+      ${sealInfo.chakra_ru ? `<p>▸ ЧАКРА: ${sealInfo.chakra_ru}</p>` : ''}
+      ${sealInfo.direction_action_ru ? `<p>▸ ${sealInfo.direction_action_ru}</p>` : ''}
+      ${sealInfo.earth_family_action_ru ? `<p>▸ ${sealInfo.earth_family_action_ru}</p>` : ''}
     </div>
+    ${sealInfo.keywords?.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
+      ${sealInfo.keywords.map(kw => `<span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;padding:3px 9px;border:1px solid var(--hairline-2);border-radius:20px;color:var(--ink-dim)">${kw}</span>`).join('')}
+    </div>` : ''}
+    ${sealInfo.description_ru ? `<p style="margin-top:12px;font-size:12px;color:var(--ink-faint);line-height:1.65;font-family:var(--font-body)">${sealInfo.description_ru}</p>` : ''}
   </div>`;
 
   // Tone detail block
@@ -298,8 +305,11 @@ function renderMain(kin, tone, seal) {
     <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>
       ТОН ${tone} — ${toneImg(tone, 20)} ${toneInfo.name_ru}</h3>
     <div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:1.9;color:var(--ink-dim);margin-top:10px">
-      <p>▸ ФУНКЦИЯ: ${toneInfo.action_ru}</p>
+      ${toneInfo.function_ru ? `<p>▸ ФУНКЦИЯ: ${toneInfo.function_ru}</p>` : ''}
+      ${toneInfo.creative_power_ru ? `<p>▸ ТВОРЧЕСКАЯ СИЛА: ${toneInfo.creative_power_ru}</p>` : ''}
+      ${toneInfo.action_ru ? `<p>▸ ДЕЙСТВИЕ: ${toneInfo.action_ru}</p>` : ''}
     </div>
+    ${toneInfo.description_ru ? `<p style="margin-top:10px;font-size:12px;color:var(--ink-faint);line-height:1.65;font-family:var(--font-body)">${toneInfo.description_ru}</p>` : ''}
     ${toneInfo.question_ru ? `<div class="question-block" style="margin-top:12px"><div class="q">❓ ${toneInfo.question_ru}</div></div>` : ''}
   </div>`;
 
