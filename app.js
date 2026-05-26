@@ -131,27 +131,27 @@ function renderMain(kin, tone, seal) {
     </div>
     <div class="info-grid">
       <div class="info-item" data-action="expand-seal">
-        <div class="info-label">Печать</div>
-        <div class="info-value">${sealImg(seal, 20)} ${sealInfo.name_ru}</div>
+        <div class="info-label">Печать ▾</div>
+        <div class="info-value">${sealImg(seal, 24)} ${sealInfo.name_ru}</div>
       </div>
       <div class="info-item" data-action="expand-tone">
-        <div class="info-label">Тон</div>
+        <div class="info-label">Тон ▾</div>
         <div class="info-value">${toneImg(tone, 18)} ${tone} — ${toneInfo.name_ru}</div>
       </div>
-      <div class="info-item" data-action="goto-wave">
-        <div class="info-label">Волна</div>
-        <div class="info-value">${sealImg(waveSeal, 20)} ${wave} — ${sealsData[waveSeal].name_ru}</div>
+      <div class="info-item" data-action="expand-wave">
+        <div class="info-label">Волна ▾</div>
+        <div class="info-value">${sealImg(waveSeal, 24)} ${wave} — ${sealsData[waveSeal].name_ru}</div>
       </div>
       <div class="info-item" data-action="expand-castle">
-        <div class="info-label">Замок</div>
+        <div class="info-label">Замок ▾</div>
         <div class="info-value">${CASTLE_NAMES[cast]?.split(' ')[0] || cast}</div>
       </div>
     </div>
   </div>`;
 
-  // Expandable seal panel
+  // Expandable panels — единый формат: Заголовок → Основная инфо → Пояснение курсивом
   html += `<div class="expand-panel${expandedPanel === 'seal' ? ' open' : ''}" id="panel-seal">
-    <h3>${sealImg(seal, 24)} Печать: ${sealInfo.name_ru}</h3>
+    <h3>${sealImg(seal, 24)} Печать: ${sealInfo.name_ru} (${sealInfo.name_maya})</h3>
     <p><b>Сущность:</b> ${sealInfo.essence_ru}<br>
     <b>Сила:</b> ${sealInfo.power_ru} · <b>Действие:</b> ${sealInfo.action_ru}<br>
     <b>Направление:</b> ${sealInfo.direction_action_ru}<br>
@@ -161,7 +161,6 @@ function renderMain(kin, tone, seal) {
     <button class="expand-close" data-close="seal">✕ Свернуть</button>
   </div>`;
 
-  // Expandable tone panel
   html += `<div class="expand-panel${expandedPanel === 'tone' ? ' open' : ''}" id="panel-tone">
     <h3>${toneImg(tone, 24)} Тон ${tone} — ${toneInfo.name_ru}</h3>
     <p><b>Функция:</b> ${toneInfo.function_ru || ''}<br>
@@ -171,7 +170,23 @@ function renderMain(kin, tone, seal) {
     <button class="expand-close" data-close="tone">✕ Свернуть</button>
   </div>`;
 
-  // Castle popup is handled via modal, no inline expand
+  const wsi = sealsData[waveSeal];
+  const p = pulsar(tone);
+  html += `<div class="expand-panel${expandedPanel === 'wave' ? ' open' : ''}" id="panel-wave">
+    <h3>🌀 Волна ${wave} — ${wsi.name_ru}</h3>
+    <p><b>Сила:</b> ${wsi.power_ru} · <b>Действие:</b> ${wsi.action_ru}<br>
+    <b>Позиция:</b> день ${(kin - 1) % 13 + 1} из 13<br>
+    <b>Пульсар:</b> ${p.name} — ${p.hint}</p>
+    <p style="margin-top:8px;color:var(--muted);font-style:italic">Волна — 13-дневный цикл с единой темой. Всего 20 волн в цикле Цолькин.</p>
+    <button class="expand-close" data-close="wave">✕ Свернуть</button>
+  </div>`;
+
+  html += `<div class="expand-panel${expandedPanel === 'castle' ? ' open' : ''}" id="panel-castle">
+    <h3>🏰 Замок ${cast} — ${CASTLE_NAMES[cast]}</h3>
+    <p>${CASTLE_HINTS[cast]}</p>
+    <p style="margin-top:8px;color:var(--muted);font-style:italic">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
+    <button class="expand-close" data-close="castle">✕ Свернуть</button>
+  </div>`;
 
   html += `<div class="affirmation">
     <div class="label">🌀 Девиз дня</div>${info.affirmation}</div>`;
@@ -219,7 +234,7 @@ function renderOracle(kin) {
     const sealDesc = si.description_ru ? si.description_ru.split('.')[0] + '.' : `${si.power_ru} · ${si.action_ru}`;
     html += `<div class="oracle-row" data-oracle-row="${roleAreaMap[r.key]}">
       <div class="oracle-arrow">${r.arrow}</div>
-      <div class="oracle-seal-img">${sealImg(seal, 28)}</div>
+      <div class="oracle-seal-img">${sealImg(seal, 32)}</div>
       <div class="oracle-info">
         <div class="oracle-role">${r.name}</div>
         <div class="oracle-name">Кин ${k} — ${title}</div>
@@ -308,7 +323,7 @@ function renderWave(kin, tone) {
     const title = kinsData[String(wk)]?.title || '';
     html += `<div class="wave-kin-row${isCurrent ? ' current' : ''}" data-wave-kin="${wk}">
       <span class="wave-kin-marker">${isCurrent ? '✦' : ''}</span>
-      <span class="wave-kin-img">${sealImg(ws, 28)}</span>
+      <span class="wave-kin-img">${sealImg(ws, 32)}</span>
       <span class="wave-kin-text">${title}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</span>
       <span class="wave-kin-num">${wk}</span>
     </div>`;
@@ -601,12 +616,22 @@ function bindCardEvents(kin, tone, seal) {
     });
   });
 
-  card.querySelectorAll('[data-action="goto-wave"]').forEach(el => {
-    el.addEventListener('click', () => switchTab('wave'));
+  card.querySelectorAll('[data-action="expand-wave"]').forEach(el => {
+    el.addEventListener('click', () => {
+      expandedPanel = expandedPanel === 'wave' ? null : 'wave';
+      render();
+      if (expandedPanel === 'wave')
+        setTimeout(() => document.getElementById('panel-wave')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+    });
   });
 
   card.querySelectorAll('[data-action="expand-castle"]').forEach(el => {
-    el.addEventListener('click', () => showCastlePopup(kin));
+    el.addEventListener('click', () => {
+      expandedPanel = expandedPanel === 'castle' ? null : 'castle';
+      render();
+      if (expandedPanel === 'castle')
+        setTimeout(() => document.getElementById('panel-castle')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+    });
   });
 
   // Close expand panels
