@@ -23,7 +23,7 @@ const ORACLE_ROLES = [
   {key:'guide',    arrow:'↑', name:'Управитель'},
   {key:'antipode', arrow:'←', name:'Антипод'},
   {key:'analog',   arrow:'→', name:'Аналог'},
-  {key:'hidden',   arrow:'↓', name:'Скрытый учитель'},
+  {key:'hidden',   arrow:'↓', name:'Оккультный учитель'},
 ];
 
 async function loadData() {
@@ -105,7 +105,7 @@ function renderMain(kin, tone, seal) {
       </div>
       <div class="info-item">
         <div class="info-label">Замок</div>
-        <div class="info-value">${cast}</div>
+        <div class="info-value">${CASTLE_NAMES[cast]?.split(' ')[0] || cast}</div>
       </div>
     </div>
   </div>`;
@@ -147,18 +147,22 @@ function renderOracle(kin) {
       ${cell(o.antipode, 'Антипод', 'anti')}
       ${cell(kin, 'Кин дня', 'main')}
       ${cell(o.analog, 'Аналог', 'analog')}
-      ${cell(o.hidden, 'Скрытый', 'hidden')}
+      ${cell(o.hidden, 'Оккультный', 'hidden')}
     </div>
     <div class="oracle-list">`;
 
   for (const r of ORACLE_ROLES) {
     const k = o[r.key];
     const title = kinsData[String(k)]?.title || '';
+    const {seal: rSeal} = kinToToneSeal(k);
+    const rSealInfo = sealsData[rSeal];
+    const sealDesc = rSealInfo.description_ru ? rSealInfo.description_ru.split('.')[0] + '.' : `${rSealInfo.power_ru} · ${rSealInfo.action_ru}`;
     html += `<div class="oracle-row">
       <div class="oracle-arrow">${r.arrow}</div>
       <div class="oracle-info">
         <div class="oracle-role">${r.name}</div>
         <div class="oracle-name">Кин ${k} — ${title}</div>
+        <div class="oracle-role" style="margin-top:2px">${sealDesc}</div>
       </div>
     </div>`;
   }
