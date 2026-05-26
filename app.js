@@ -331,23 +331,26 @@ function mayaDots(tone) {
   return `<span class="maya-num">${s}</span>`;
 }
 
-/* ── GAP portal diamond pattern (canonical Harmonic Index) ── */
+/* ── GAP portal pattern — 52 canonical portals (DNA double helix) ── */
 const GAP_GRID = new Set();
-(function buildGapDiamond() {
-  const diamond = [
-    [0, 19],
-    [1, 18],
-    [2, 3, 16, 17],
-    [4, 5, 14, 15],
-    [6, 7, 12, 13],
-    [8, 9, 10, 11],
+(function buildGapSpiral() {
+  // rows (0-indexed) for each distance from center column
+  // Pattern widens as strands approach the center, forming a double helix
+  const layers = [
+    [0, 19],                         // cols 1,13: 2 cells
+    [1, 18],                         // cols 2,12: 2 cells
+    [2, 3, 16, 17],                  // cols 3,11: 4 cells
+    [3, 4, 5, 14, 15, 16],           // cols 4,10: 6 cells
+    [5, 6, 7, 12, 13, 14],           // cols 5,9:  6 cells
+    [7, 8, 9, 10, 11, 12],           // cols 6,8:  6 cells
   ];
-  for (let d = 0; d < 6; d++) {
-    const leftCol = d;
-    const rightCol = 12 - d;
-    for (const row of diamond[d]) {
+  for (let i = 0; i < 6; i++) {
+    const leftCol = i;       // 0-indexed columns 0..5
+    const rightCol = 12 - i; // 0-indexed columns 12..7
+    for (const row of layers[i]) {
       GAP_GRID.add(row + leftCol * 20 + 1);
-      GAP_GRID.add(row + rightCol * 20 + 1);
+      if (leftCol !== rightCol)
+        GAP_GRID.add(row + rightCol * 20 + 1);
     }
   }
 })();
@@ -722,6 +725,7 @@ function setupEvents() {
   let startX = 0;
   card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
   card.addEventListener('touchend', e => {
+    if (currentTab === 'tzolkin') return;
     const diff = e.changedTouches[0].clientX - startX;
     if (Math.abs(diff) > 60) { currentDate = addDays(currentDate, diff > 0 ? -1 : 1); expandedPanel = null; render(); }
   }, { passive: true });
