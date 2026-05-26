@@ -284,9 +284,8 @@ function renderMain(kin, tone, seal) {
   // Seal detail block
   html += `<div class="detail-section">
     <h3><span class="dot" style="background:var(--n-${color});box-shadow:0 0 8px var(--n-${color})"></span>
-      ПЕЧАТЬ — ${sealImg(seal, 20)} ${sealInfo.name_ru}</h3>
-    <div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:1.9;color:var(--ink-dim);margin-top:10px">
-      <p>▸ ${sealInfo.name_maya}</p>
+      ПЕЧАТЬ — ${sealImg(seal, 20)} ${sealInfo.name_ru} · ${sealInfo.name_maya}</h3>
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
       <p>▸ СУТЬ: ${sealInfo.essence_ru}</p>
       <p>▸ СИЛА: ${sealInfo.power_ru}</p>
       <p>▸ ДЕЙСТВИЕ: ${sealInfo.action_ru}</p>
@@ -297,19 +296,19 @@ function renderMain(kin, tone, seal) {
     ${sealInfo.keywords?.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
       ${sealInfo.keywords.map(kw => `<span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;padding:3px 9px;border:1px solid var(--hairline-2);border-radius:20px;color:var(--ink-dim)">${kw}</span>`).join('')}
     </div>` : ''}
-    ${sealInfo.description_ru ? `<p style="margin-top:12px;font-size:12px;color:var(--ink-faint);line-height:1.65;font-family:var(--font-body)">${sealInfo.description_ru}</p>` : ''}
+    ${sealInfo.description_ru ? `<p>${sealInfo.description_ru}</p>` : ''}
   </div>`;
 
   // Tone detail block
   html += `<div class="detail-section">
     <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>
       ТОН ${tone} — ${toneImg(tone, 20)} ${toneInfo.name_ru}</h3>
-    <div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:1.9;color:var(--ink-dim);margin-top:10px">
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
       ${toneInfo.function_ru ? `<p>▸ ФУНКЦИЯ: ${toneInfo.function_ru}</p>` : ''}
       ${toneInfo.creative_power_ru ? `<p>▸ ТВОРЧЕСКАЯ СИЛА: ${toneInfo.creative_power_ru}</p>` : ''}
       ${toneInfo.action_ru ? `<p>▸ ДЕЙСТВИЕ: ${toneInfo.action_ru}</p>` : ''}
     </div>
-    ${toneInfo.description_ru ? `<p style="margin-top:10px;font-size:12px;color:var(--ink-faint);line-height:1.65;font-family:var(--font-body)">${toneInfo.description_ru}</p>` : ''}
+    ${toneInfo.description_ru ? `<p>${toneInfo.description_ru}</p>` : ''}
     ${toneInfo.question_ru ? `<div class="question-block" style="margin-top:12px"><div class="q">❓ ${toneInfo.question_ru}</div></div>` : ''}
   </div>`;
 
@@ -432,27 +431,27 @@ function renderWave(kin, tone) {
 
   let html = `<div class="kin-card">
     <h3 class="card-title"><span class="dot"></span> ВОЛНА ${wave} — ${sealImg(waveSeal, 22)} ${wsi.name_ru}</h3>
-    <p class="section-intro">Волна — 13-дневный цикл с единой темой. Всего 20 волн.</p>
     <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
       <p>▸ СИЛА: ${wsi.power_ru}</p>
       <p>▸ ДЕЙСТВИЕ: ${wsi.action_ru}</p>
-      <p style="margin-top:8px;color:var(--ink)">СЕГОДНЯ ДЕНЬ <b>${pos}</b> ИЗ 13</p>
+      <p>▸ СЕГОДНЯ ДЕНЬ ${pos} ИЗ 13</p>
     </div>
+    <p>Волна — 13-дневный цикл с единой темой. Всего 20 волн.</p>
   </div>
   <div class="detail-section">
     <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}</h3>
-    <p class="section-intro">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
     <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
       <p>▸ ${CASTLE_HINTS[cast].replace(' — ', '</p><p>▸ ')}</p>
-      <p style="margin-top:8px;color:var(--ink)">ЗАМОК <b>${cast}</b> ИЗ 5 · ВОЛНЫ ${(cast - 1) * 4 + 1}–${cast * 4}</p>
+      <p>▸ ЗАМОК ${cast} ИЗ 5 · ВОЛНЫ ${(cast - 1) * 4 + 1}–${cast * 4}</p>
     </div>
+    <p>Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
   </div>
   <div class="detail-section">
     <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПУЛЬСАР: ${p.name}</h3>
-    <p class="section-intro">Пульсар — ритм внутри волны: какое измерение активно сегодня.</p>
     <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
       <p>▸ ${p.hint}</p>
     </div>
+    <p>Пульсар — ритм внутри волны: какое измерение активно сегодня.</p>
   </div>`;
 
   // 13 kins of wave
