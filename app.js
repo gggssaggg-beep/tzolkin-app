@@ -100,13 +100,21 @@ function navigateToDate(d) {
   render();
 }
 
+let previousTab = 'main';
+
 function switchTab(tab) {
+  if (currentTab !== 'personal') previousTab = currentTab;
   document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
   const btn = document.querySelector(`.tab[data-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
   currentTab = tab;
   expandedPanel = null;
   render();
+}
+
+function closeMyKinModal() {
+  document.getElementById('my-kin-modal').style.display = 'none';
+  if (currentTab === 'personal') switchTab(previousTab);
 }
 
 /* ── WaveBar component ── */
@@ -159,20 +167,24 @@ function renderMain(kin, tone, seal) {
 
   html += `<div class="info-grid">
       <div class="info-item" data-action="expand-seal">
-        <div class="info-label">ПЕЧАТЬ ▾</div>
+        <div class="info-label">ПЕЧАТЬ ${expandedPanel === 'seal' ? '▴' : '▾'}</div>
         <div class="info-value">${sealImg(seal, 22)} ${sealInfo.name_ru}</div>
+        <div class="info-sub">${sealInfo.essence_ru}</div>
       </div>
       <div class="info-item" data-action="expand-tone">
-        <div class="info-label">ТОН ▾</div>
+        <div class="info-label">ТОН ${expandedPanel === 'tone' ? '▴' : '▾'}</div>
         <div class="info-value">${toneImg(tone, 18)} ${tone} — ${toneInfo.name_ru}</div>
+        <div class="info-sub">${toneInfo.action_ru}</div>
       </div>
       <div class="info-item" data-action="expand-wave">
-        <div class="info-label">ВОЛНА ▾</div>
+        <div class="info-label">ВОЛНА ${expandedPanel === 'wave' ? '▴' : '▾'}</div>
         <div class="info-value">${sealImg(waveSeal, 22)} ${wave} — ${sealsData[waveSeal].name_ru}</div>
+        <div class="info-sub">Позиция ${(kin - 1) % 13 + 1} из 13</div>
       </div>
       <div class="info-item" data-action="expand-castle">
-        <div class="info-label">ЗАМОК ▾</div>
+        <div class="info-label">ЗАМОК ${expandedPanel === 'castle' ? '▴' : '▾'}</div>
         <div class="info-value">${CASTLE_NAMES[cast]?.split(' ')[0] || cast}</div>
+        <div class="info-sub">${CASTLE_HINTS[cast]?.split('—')[0]?.trim() || ''}</div>
       </div>
     </div>
   </div>`;
@@ -276,7 +288,7 @@ function renderOracle(kin) {
     const c = sealColor(seal);
     const title = kinsData[String(k)]?.title || '';
     const sealDesc = si.description_ru ? si.description_ru.split('.')[0] + '.' : `${si.power_ru} · ${si.action_ru}`;
-    html += `<div class="oracle-row" data-oracle-row="${roleAreaMap[r.key]}">
+    html += `<div class="oracle-row" data-oracle-row="${roleAreaMap[r.key]}" data-oracle-kin="${k}">
       <div class="oracle-arrow">${r.arrow}</div>
       <div class="oracle-seal-img c-${c}">${sealImg(seal, 32, true)}</div>
       <div class="oracle-info">
@@ -284,6 +296,7 @@ function renderOracle(kin) {
         <div class="oracle-name">КИН ${k} — ${title}</div>
         <div class="oracle-hint">${r.desc}</div>
         <div class="oracle-seal-desc">${sealDesc}</div>
+        <div class="oracle-nav-hint">нажмите для перехода →</div>
       </div></div>`;
   }
   html += `</div></div>`;
@@ -302,6 +315,7 @@ function renderMoon() {
   return `<div class="kin-card">
     <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> 13-ЛУННЫЙ КАЛЕНДАРЬ</h3>
     <p class="section-intro">Год из 13 лун по 28 дней. Каждая луна = 4 недели. Начало года — 26 июля.</p>
+    <p class="section-intro">${m.moonName}</p>
     <div class="info-grid" style="margin-top:12px">
       <div class="info-item" style="cursor:default"><div class="info-label">ЛУНА</div>
         <div class="info-value">${m.moonNumber} ИЗ 13</div></div>
@@ -312,7 +326,6 @@ function renderMoon() {
       <div class="info-item moon-clickable" data-action="plasma-expand"><div class="info-label">ПЛАЗМА</div>
         <div class="info-value">${m.plasma.name}</div></div>
     </div>
-    <p style="margin-top:12px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em"><b>${m.moonName}</b></p>
   </div>
   <div class="detail-section" id="plasma-section">
     <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПЛАЗМА: ${m.plasma.name}</h3>
@@ -505,9 +518,10 @@ function renderTzolkin(currentKin) {
       <span><span class="legend-swatch" style="background:oklch(0.75 0.08 195)"></span>Белый</span>
       <span><span class="legend-swatch" style="background:oklch(0.40 0.16 265)"></span>Синий</span>
       <span><span class="legend-swatch" style="background:oklch(0.72 0.12 85)"></span>Жёлтый</span>
-      <span><span class="legend-swatch" style="background:oklch(0.55 0.14 155)"></span>ГАП</span>
-      <span><span class="legend-swatch" style="background:rgba(120,100,160,0.4)"></span>Мист.</span>
+      <span title="Galactic Activation Portal — день усиленной галактической энергии. 52 дня из 260."><span class="legend-swatch" style="background:oklch(0.55 0.14 155)"></span>ГАП <span class="legend-hint">ⓘ</span></span>
+      <span title="Мистическая колонка — 7-й столбец Цолькина (тон 7). 20 дней зеркальной симметрии."><span class="legend-swatch" style="background:rgba(120,100,160,0.4)"></span>Мист. <span class="legend-hint">ⓘ</span></span>
     </div>
+    <p class="section-intro" style="margin-top:8px">ГАП (Galactic Activation Portal) — 52 дня усиленной галактической энергии. Мист. — Мистическая колонка, 7-й столбец Цолькина: 20 дней зеркальной симметрии.</p>
   </div>`;
 
   html += `<div class="tzolkin-grid-wrapper"><div class="tzolkin-grid">`;
@@ -685,9 +699,7 @@ function showMyKinModal() {
 function bindMyKinEvents() {
   const closeBtn = document.getElementById('my-kin-close');
   if (closeBtn) {
-    closeBtn.addEventListener('click', () => {
-      document.getElementById('my-kin-modal').style.display = 'none';
-    });
+    closeBtn.addEventListener('click', closeMyKinModal);
   }
   const clearBtn = document.getElementById('birth-clear-btn');
   if (clearBtn) {
@@ -792,21 +804,23 @@ function bindCardEvents(kin, tone, seal) {
     });
   });
 
-  // Oracle tab: row clicks also toggle highlight
-  card.querySelectorAll('.oracle-row[data-oracle-row]').forEach(el => {
+  // Oracle tab: row clicks navigate to that kin
+  card.querySelectorAll('.oracle-row[data-oracle-kin]').forEach(el => {
     el.addEventListener('click', () => {
-      const wasHighlighted = el.classList.contains('highlighted');
-      card.querySelectorAll('.oracle-row').forEach(r => r.classList.remove('highlighted'));
-      if (!wasHighlighted) el.classList.add('highlighted');
+      const targetKin = +el.dataset.oracleKin;
+      const d = dateForKin(targetKin);
+      navigateToDate(d);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   });
 
-  // Wave tab: kin row clicks
+  // Wave tab: kin row clicks — navigate and scroll to top
   card.querySelectorAll('.wave-kin-row[data-wave-kin]').forEach(el => {
     el.addEventListener('click', () => {
       const targetKin = +el.dataset.waveKin;
       const d = dateForKin(targetKin);
       navigateToDate(d);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   });
 
@@ -867,8 +881,18 @@ function bindCardEvents(kin, tone, seal) {
 
 /* ── Setup permanent events ── */
 function setupEvents() {
-  document.getElementById('prev').addEventListener('click', () => { currentDate = addDays(currentDate, -1); expandedPanel = null; cyclesKin = null; render(); });
-  document.getElementById('next').addEventListener('click', () => { currentDate = addDays(currentDate, 1); expandedPanel = null; cyclesKin = null; render(); });
+  document.getElementById('prev').addEventListener('click', () => {
+    currentDate = addDays(currentDate, -1);
+    expandedPanel = null;
+    cyclesKin = (currentTab === 'cycles') ? dreamspellKin(currentDate) : null;
+    render();
+  });
+  document.getElementById('next').addEventListener('click', () => {
+    currentDate = addDays(currentDate, 1);
+    expandedPanel = null;
+    cyclesKin = (currentTab === 'cycles') ? dreamspellKin(currentDate) : null;
+    render();
+  });
 
   const datePicker = document.getElementById('date-picker');
   document.getElementById('date-display').addEventListener('click', () => {
@@ -893,11 +917,12 @@ function setupEvents() {
   // My Kin button
   document.getElementById('my-kin-btn').addEventListener('click', showMyKinModal);
 
-  // Close modal on overlay click
+  // Close modal on overlay click or ESC
   document.getElementById('my-kin-modal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('my-kin-modal')) {
-      document.getElementById('my-kin-modal').style.display = 'none';
-    }
+    if (e.target === document.getElementById('my-kin-modal')) closeMyKinModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('my-kin-modal').style.display !== 'none') closeMyKinModal();
   });
 
   // Swipe navigation
