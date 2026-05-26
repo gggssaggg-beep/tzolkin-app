@@ -42,7 +42,7 @@ function toneImg(toneId, size = 32) {
 
 /* ── Kin popup ── */
 function showKinPopup(kin, roleInfo) {
-  haptic(18);
+  haptic('medium');
   const { tone, seal } = kinToToneSeal(kin);
   const info = kinsData[String(kin)];
   const si = sealsData[seal];
@@ -86,7 +86,7 @@ function closeKinPopup() {
 
 /* ── Generic info popup (wave/castle/moon) ── */
 function showInfoPopup(title, bodyHtml) {
-  haptic(18);
+  haptic('medium');
   const popup = document.getElementById('kin-popup-content');
   popup.innerHTML = `
     <h3 class="card-title" style="margin-bottom:12px">
@@ -100,8 +100,17 @@ function showInfoPopup(title, bodyHtml) {
 }
 
 /* ── Haptic feedback ── */
-function haptic(ms = 10) {
-  try { navigator.vibrate?.(ms); } catch (_) {}
+function haptic(strength = 'light') {
+  try {
+    const tg = window.Telegram?.WebApp?.HapticFeedback;
+    if (tg) {
+      if (strength === 'selection') tg.selectionChanged();
+      else tg.impactOccurred(strength); // 'light' | 'medium' | 'heavy'
+    } else {
+      const ms = strength === 'medium' ? 18 : strength === 'heavy' ? 35 : strength === 'selection' ? 6 : 10;
+      navigator.vibrate?.(ms);
+    }
+  } catch (_) {}
 }
 
 /* ── Ambient music ── */
@@ -1107,8 +1116,8 @@ function bindCardEvents(kin, tone, seal) {
       const rawDelta = Math.round((dx / cellW) * unit);
       let newKin = ((startKin + rawDelta - 1) % 260 + 260) % 260 + 1;
       if (newKin !== cyclesKin) {
-        if (unit === 52 && castle(newKin) !== castle(cyclesKin)) haptic(10);
-        else if (unit === 13 && wavespell(newKin) !== wavespell(cyclesKin)) haptic(8);
+        if (unit === 52 && castle(newKin) !== castle(cyclesKin)) haptic('light');
+        else if (unit === 13 && wavespell(newKin) !== wavespell(cyclesKin)) haptic('selection');
         cyclesKin = newKin;
         updateCyclesActive();
       }
@@ -1125,7 +1134,7 @@ function bindCardEvents(kin, tone, seal) {
         if (snapped !== cyclesKin) {
           cyclesKin = snapped;
         }
-        if (unit !== 1) haptic(15);
+        if (unit !== 1) haptic('medium');
         updateCyclesActive(); // full update with all strips
       } else {
         dragUnit = 0;
@@ -1147,13 +1156,13 @@ function setupEvents() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
   document.getElementById('prev').addEventListener('click', () => {
-    haptic(12);
+    haptic('light');
     currentDate = addDays(currentDate, -1);
     cyclesKin = (currentTab === 'cycles') ? dreamspellKin(currentDate) : null;
     render();
   });
   document.getElementById('next').addEventListener('click', () => {
-    haptic(12);
+    haptic('light');
     currentDate = addDays(currentDate, 1);
     cyclesKin = (currentTab === 'cycles') ? dreamspellKin(currentDate) : null;
     render();
@@ -1175,7 +1184,7 @@ function setupEvents() {
 
   // Tab buttons
   document.querySelectorAll('.tab').forEach(btn => {
-    btn.addEventListener('click', () => { haptic(8); switchTab(btn.dataset.tab); });
+    btn.addEventListener('click', () => { haptic('selection'); switchTab(btn.dataset.tab); });
   });
 
   // My Kin button
@@ -1204,7 +1213,7 @@ function setupEvents() {
   card.addEventListener('touchend', e => {
     if (currentTab === 'tzolkin' || currentTab === 'cycles') return;
     const diff = e.changedTouches[0].clientX - startX;
-    if (Math.abs(diff) > 60) { haptic(12); currentDate = addDays(currentDate, diff > 0 ? -1 : 1); cyclesKin = null; render(); }
+    if (Math.abs(diff) > 60) { haptic('light'); currentDate = addDays(currentDate, diff > 0 ? -1 : 1); cyclesKin = null; render(); }
   }, { passive: true });
 
   // Telegram WebApp integration — do NOT override our neon theme colors
