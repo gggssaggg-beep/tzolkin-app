@@ -21,7 +21,7 @@ function countSkipped(start, end) {
 }
 
 function dreamspellKin(d) {
-  let dt = new Date(d);
+  let dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   if (dt.getMonth() === 1 && dt.getDate() === 29) {
     dt = new Date(dt.getFullYear(), 1, 28);
   }

@@ -26,7 +26,7 @@ const ORACLE_ROLES = [
 
 /* ── Helpers: images ── */
 function sealImg(sealId, size = 48) {
-  return `<img src="img/sticker_${String(sealId).padStart(2, '0')}.png" width="${size}" height="${size}" class="seal-img round" alt="">`;
+  return `<img src="img/seal_${String(sealId).padStart(2, '0')}.png" width="${size}" height="${size}" class="seal-img round" alt="">`;
 }
 function toneImg(toneId, size = 32) {
   return `<img src="img/tone_${String(toneId).padStart(2, '0')}.png" width="${size}" height="${size}" class="tone-img" alt="">`;
