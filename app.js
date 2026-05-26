@@ -390,6 +390,59 @@ function renderWave(kin, tone) {
 }
 
 /* ── Tab: Cycles ── */
+function updateCyclesActive() {
+  const kin = cyclesKin;
+  const { tone, seal } = kinToToneSeal(kin);
+  const sealInfo = sealsData[seal];
+  const toneInfo = tonesData[tone];
+  const color = sealColor(seal);
+  const castIdx = castle(kin) - 1;
+  const waveInCastle = Math.floor(((kin - 1) % 52) / 13);
+  const castleColors = ['red','cyan','blue','amber','violet'];
+  const waveColors = ['red','cyan','blue','amber'];
+
+  // Update castle cells
+  const castleCells = document.querySelectorAll('[data-cycle="castle"] .cycle-cell');
+  castleCells.forEach((c, i) => c.classList.toggle('active', i === castIdx));
+
+  // Update wave cells
+  const waveCells = document.querySelectorAll('[data-cycle="wave"] .cycle-cell');
+  waveCells.forEach((c, i) => c.classList.toggle('active', i === waveInCastle));
+
+  // Update tone cells
+  const toneCells = document.querySelectorAll('[data-cycle="tone"] .cycle-cell');
+  toneCells.forEach((c, i) => c.classList.toggle('active', i === tone - 1));
+
+  // Update strip colors
+  const strips = document.querySelectorAll('.cycle-strip');
+  if (strips[0]) strips[0].className = `cycle-strip c-${castleColors[castIdx]}`;
+  if (strips[1]) strips[1].className = `cycle-strip c-${waveColors[waveInCastle]}`;
+  if (strips[2]) strips[2].className = `cycle-strip c-${waveColors[waveInCastle]}`;
+
+  // Update info card
+  const infoCard = document.querySelector('.cycle-info-card');
+  if (infoCard) {
+    infoCard.innerHTML = `
+    <div class="row">
+      <div class="c-${color}" style="width:80px;height:80px;flex-shrink:0;display:grid;place-items:center">
+        ${sealImg(seal, 72, true)}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="eyebrow">КИН · ${kin} / 260</div>
+        <div class="kin-num c-${color}" style="font-size:44px;margin-top:2px">${kin}</div>
+        <div class="display" style="font-size:10px;margin-top:6px;opacity:0.85">
+          ЗАМОК ${castIdx + 1} · ВОЛНА ${waveInCastle + 1} · ТОН ${tone}
+        </div>
+      </div>
+    </div>
+    <div class="hr"></div>
+    <div class="dim" style="font-size:12px;line-height:1.5;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em">
+      260 ДНЕЙ = 5 ЗАМКОВ × 4 ВОЛНЫ × 13 ТОНОВ.<br>
+      КАЖДЫЙ ТОН ВНУТРИ ВОЛНЫ, ВОЛНА ВНУТРИ ЗАМКА.
+    </div>`;
+  }
+}
+
 function renderCycles(kin) {
   const { tone, seal } = kinToToneSeal(kin);
   const info = kinsData[String(kin)];
@@ -842,7 +895,7 @@ function bindCardEvents(kin, tone, seal) {
     });
   });
 
-  // Cycles tab: swipeable strips
+  // Cycles tab: swipeable strips — update classes without DOM rebuild
   card.querySelectorAll('.cycle-strip-grid[data-cycle]').forEach(strip => {
     let startX = 0;
     let cellW = 0;
@@ -865,12 +918,11 @@ function bindCardEvents(kin, tone, seal) {
       if (cells !== accum) {
         const step = (cells - accum) * unit;
         accum = cells;
-        // Update cyclesKin
         let newKin = cyclesKin + step;
         while (newKin < 1) newKin += 260;
         while (newKin > 260) newKin -= 260;
         cyclesKin = newKin;
-        render();
+        updateCyclesActive();
       }
     });
 
