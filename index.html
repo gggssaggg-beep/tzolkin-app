@@ -3,19 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#1a1a2e">
+<meta name="theme-color" content="#050010">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Кин дня — Цолькин</title>
 <link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="stars"></div>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
 <div id="app">
   <header id="nav">
     <button id="prev" class="nav-btn" aria-label="Previous day">&larr;</button>
     <div id="date-display" class="date-tap"></div>
-    <button id="my-kin-btn" class="nav-btn" aria-label="Мой кин" title="Мой кин">&#128100;</button>
+    <button id="my-kin-btn" class="nav-btn" aria-label="Мой кин" title="Мой кин">☉</button>
     <button id="next" class="nav-btn" aria-label="Next day">&rarr;</button>
   </header>
   <input type="date" id="date-picker" style="display:none">
@@ -28,9 +35,10 @@
   <main id="card"></main>
 
   <nav id="tabs">
-    <button class="tab active" data-tab="main">🌞 Кин</button>
-    <button class="tab" data-tab="tzolkin">📅 Цолькин</button>
-    <button class="tab" data-tab="personal">👤 Мой</button>
+    <button class="tab active" data-tab="main"><span class="tab-icon">◉</span>КИН</button>
+    <button class="tab" data-tab="cycles"><span class="tab-icon">◌</span>ЦИКЛЫ</button>
+    <button class="tab" data-tab="tzolkin"><span class="tab-icon">▦</span>ЦОЛЬКИН</button>
+    <button class="tab" data-tab="personal"><span class="tab-icon">☉</span>МОЙ</button>
   </nav>
 </div>
 

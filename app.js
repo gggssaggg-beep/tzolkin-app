@@ -11,6 +11,9 @@ let currentTab = 'main';
 /* ── Expanded panel tracking ── */
 let expandedPanel = null; // 'seal' | 'tone' | 'castle' | null
 
+/* ── Cycles tab state ── */
+let cyclesKin = null; // lazy init on first render
+
 const MONTHS_RU = [
   'января','февраля','марта','апреля','мая','июня',
   'июля','августа','сентября','октября','ноября','декабря',
@@ -24,9 +27,16 @@ const ORACLE_ROLES = [
   {key:'hidden',   arrow:'↓', name:'Оккультный учитель', desc:'Скрытая сила, раскрывающаяся через принятие тени.'},
 ];
 
+const CASTLE_SUB = ['ЗАЧАТИЕ','ОЧИЩЕНИЕ','ПЕРЕХОД','ДАРЕНИЕ','ПРОСВЕТЛЕНИЕ'];
+
+/* ── Neon color mapping: White→cyan, Yellow→amber ── */
+const NEON_MAP = { red:'red', white:'cyan', blue:'blue', yellow:'amber' };
+function sealColor(seal) { return NEON_MAP[COLOR_RU[SEAL_COLORS[seal]]]; }
+
 /* ── Helpers: images ── */
-function sealImg(sealId, size = 48) {
-  return `<img src="img/seal_${String(sealId).padStart(2, '0')}.png" width="${size}" height="${size}" class="seal-img round" alt="">`;
+function sealImg(sealId, size = 48, glow = false) {
+  const glowCls = glow ? ' glow' : '';
+  return `<img src="img/seal_${String(sealId).padStart(2, '0')}.png" width="${size}" height="${size}" class="seal-img round${glowCls}" style="${glow ? 'filter:drop-shadow(0 0 calc(8px * var(--glow)) currentColor)' : ''}" alt="">`;
 }
 function toneImg(toneId, size = 32) {
   return `<img src="img/tone_${String(toneId).padStart(2, '0')}.png" width="${size}" height="${size}" class="tone-img" alt="">`;
@@ -55,7 +65,6 @@ function addDays(d, n) {
   r.setDate(r.getDate() + n);
   return r;
 }
-function sealColor(seal) { return COLOR_RU[SEAL_COLORS[seal]]; }
 
 function isGap(kin) {
   const info = kinsData[String(kin)];
@@ -72,8 +81,6 @@ function dateForKin(targetKin) {
   // Normalize to range [-130, +129] so we get the nearest occurrence
   while (diff < -130) diff += 260;
   while (diff > 129) diff += -260;
-  // But we want next occurrence from today for wave view — actually let's just
-  // calculate forward/backward precisely
   return addDays(currentDate, diff);
 }
 
@@ -83,8 +90,8 @@ function renderNav() {
   const today = new Date();
   const isToday = currentDate.toDateString() === today.toDateString();
   el.innerHTML = `
-    <div class="day">${isToday ? 'Сегодня' : DAYS_RU[currentDate.getDay()]}</div>
-    <div class="full">${formatDateRu(currentDate)}</div>`;
+    <div class="day">${isToday ? 'СЕГОДНЯ' : DAYS_RU[currentDate.getDay()].toUpperCase()}</div>
+    <div class="full">${formatDateRu(currentDate).toUpperCase()}</div>`;
 }
 
 function navigateToDate(d) {
@@ -102,6 +109,23 @@ function switchTab(tab) {
   render();
 }
 
+/* ── WaveBar component ── */
+function renderWaveBar(tone, colorCls) {
+  let cells = '';
+  for (let i = 1; i <= 13; i++) {
+    let cls = 'wave-bar-cell';
+    if (i === tone) cls += ' active';
+    else if (i < tone) cls += ' passed';
+    cells += `<div class="${cls}"></div>`;
+  }
+  return `<div class="wave-bar ${colorCls}">
+    <div class="wave-bar-label">
+      <span>ВОЛНА · ПОЗИЦИЯ ${tone}/13</span>
+    </div>
+    <div class="wave-bar-strip">${cells}</div>
+  </div>`;
+}
+
 /* ── Tab: Main (Кин) ── */
 function renderMain(kin, tone, seal) {
   const info = kinsData[String(kin)];
@@ -116,7 +140,7 @@ function renderMain(kin, tone, seal) {
   let html = '';
 
   if (isDayOutOfTime(currentDate))
-    html += `<div class="doot-banner">⏳ День вне Времени</div>`;
+    html += `<div class="doot-banner">⏳ ДЕНЬ ВНЕ ВРЕМЕНИ</div>`;
 
   if (tone === 1)
     html += `<div class="wave-banner"><div class="emoji">🌀</div>
@@ -124,76 +148,93 @@ function renderMain(kin, tone, seal) {
 
   html += `<div class="kin-card">
     <div class="kin-header">
-      <div class="seal-badge ${color}">${sealImg(seal, 80)}</div>
-      <div class="kin-number" style="color:var(--${color})">${kin}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
+      <div class="seal-badge ${color} c-${color}">${sealImg(seal, 80, true)}</div>
+      <div class="kin-number c-${color}">${kin}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
       <div class="kin-title">${info.title}</div>
-      <div class="kin-subtitle">${sealInfo.name_maya} · ${toneImg(tone, 18)} Тон ${tone} — ${toneInfo.name_ru}</div>
-    </div>
-    <div class="info-grid">
+      <div class="kin-subtitle">${sealInfo.name_maya} · ${toneImg(tone, 18)} ТОН ${tone} — ${toneInfo.name_ru}</div>
+    </div>`;
+
+  // WaveBar
+  html += renderWaveBar(tone, 'c-' + color);
+
+  html += `<div class="info-grid">
       <div class="info-item" data-action="expand-seal">
-        <div class="info-label">Печать ▾</div>
-        <div class="info-value">${sealImg(seal, 24)} ${sealInfo.name_ru}</div>
+        <div class="info-label">ПЕЧАТЬ ▾</div>
+        <div class="info-value">${sealImg(seal, 22)} ${sealInfo.name_ru}</div>
       </div>
       <div class="info-item" data-action="expand-tone">
-        <div class="info-label">Тон ▾</div>
+        <div class="info-label">ТОН ▾</div>
         <div class="info-value">${toneImg(tone, 18)} ${tone} — ${toneInfo.name_ru}</div>
       </div>
       <div class="info-item" data-action="expand-wave">
-        <div class="info-label">Волна ▾</div>
-        <div class="info-value">${sealImg(waveSeal, 24)} ${wave} — ${sealsData[waveSeal].name_ru}</div>
+        <div class="info-label">ВОЛНА ▾</div>
+        <div class="info-value">${sealImg(waveSeal, 22)} ${wave} — ${sealsData[waveSeal].name_ru}</div>
       </div>
       <div class="info-item" data-action="expand-castle">
-        <div class="info-label">Замок ▾</div>
+        <div class="info-label">ЗАМОК ▾</div>
         <div class="info-value">${CASTLE_NAMES[cast]?.split(' ')[0] || cast}</div>
       </div>
     </div>
   </div>`;
 
-  // Expandable panels — единый формат: Заголовок → Основная инфо → Пояснение курсивом
+  // Expandable panels
   html += `<div class="expand-panel${expandedPanel === 'seal' ? ' open' : ''}" id="panel-seal">
-    <h3>${sealImg(seal, 24)} Печать: ${sealInfo.name_ru} (${sealInfo.name_maya})</h3>
+    <h3>${sealImg(seal, 22)} ПЕЧАТЬ: ${sealInfo.name_ru} (${sealInfo.name_maya})</h3>
     <p><b>Сущность:</b> ${sealInfo.essence_ru}<br>
     <b>Сила:</b> ${sealInfo.power_ru} · <b>Действие:</b> ${sealInfo.action_ru}<br>
     <b>Направление:</b> ${sealInfo.direction_action_ru}<br>
     <b>Семья Земли:</b> ${sealInfo.earth_family_action_ru}<br>
     <b>Чакра:</b> ${sealInfo.chakra_ru}</p>
-    ${sealInfo.description_ru ? `<p style="margin-top:8px;color:var(--muted);font-style:italic">${sealInfo.description_ru}</p>` : ''}
-    <button class="expand-close" data-close="seal">✕ Свернуть</button>
+    ${sealInfo.description_ru ? `<p style="margin-top:8px;color:var(--ink-faint);font-style:italic">${sealInfo.description_ru}</p>` : ''}
+    <button class="expand-close" data-close="seal">✕ СВЕРНУТЬ</button>
   </div>`;
 
   html += `<div class="expand-panel${expandedPanel === 'tone' ? ' open' : ''}" id="panel-tone">
-    <h3>${toneImg(tone, 24)} Тон ${tone} — ${toneInfo.name_ru}</h3>
+    <h3>${toneImg(tone, 22)} ТОН ${tone} — ${toneInfo.name_ru}</h3>
     <p><b>Функция:</b> ${toneInfo.function_ru || ''}<br>
     <b>Действие:</b> ${toneInfo.action_ru}<br>
     <b>Творческая сила:</b> ${toneInfo.creative_power_ru}</p>
-    ${toneInfo.description_ru ? `<p style="margin-top:8px;color:var(--muted);font-style:italic">${toneInfo.description_ru}</p>` : ''}
-    <button class="expand-close" data-close="tone">✕ Свернуть</button>
+    ${toneInfo.description_ru ? `<p style="margin-top:8px;color:var(--ink-faint);font-style:italic">${toneInfo.description_ru}</p>` : ''}
+    <button class="expand-close" data-close="tone">✕ СВЕРНУТЬ</button>
   </div>`;
 
   const wsi = sealsData[waveSeal];
   const p = pulsar(tone);
   html += `<div class="expand-panel${expandedPanel === 'wave' ? ' open' : ''}" id="panel-wave">
-    <h3>🌀 Волна ${wave} — ${wsi.name_ru}</h3>
+    <h3>🌀 ВОЛНА ${wave} — ${wsi.name_ru}</h3>
     <p><b>Сила:</b> ${wsi.power_ru} · <b>Действие:</b> ${wsi.action_ru}<br>
     <b>Позиция:</b> день ${(kin - 1) % 13 + 1} из 13<br>
     <b>Пульсар:</b> ${p.name} — ${p.hint}</p>
-    <p style="margin-top:8px;color:var(--muted);font-style:italic">Волна — 13-дневный цикл с единой темой. Всего 20 волн в цикле Цолькин.</p>
-    <button class="expand-close" data-close="wave">✕ Свернуть</button>
+    <p style="margin-top:8px;color:var(--ink-faint);font-style:italic">Волна — 13-дневный цикл с единой темой. Всего 20 волн в цикле Цолькин.</p>
+    <button class="expand-close" data-close="wave">✕ СВЕРНУТЬ</button>
   </div>`;
 
   html += `<div class="expand-panel${expandedPanel === 'castle' ? ' open' : ''}" id="panel-castle">
-    <h3>🏰 Замок ${cast} — ${CASTLE_NAMES[cast]}</h3>
+    <h3>🏰 ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}</h3>
     <p>${CASTLE_HINTS[cast]}</p>
-    <p style="margin-top:8px;color:var(--muted);font-style:italic">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
-    <button class="expand-close" data-close="castle">✕ Свернуть</button>
+    <p style="margin-top:8px;color:var(--ink-faint);font-style:italic">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
+    <button class="expand-close" data-close="castle">✕ СВЕРНУТЬ</button>
   </div>`;
 
-  html += `<div class="affirmation">
-    <div class="label">🌀 Девиз дня</div>${info.affirmation}</div>`;
+  // Affirmation with bracket frame
+  const affLines = (info.affirmation || '').split('\n').filter(l => l.trim());
+  html += `<div class="affirmation bracket-frame c-cyan">
+    <div class="br-tr"></div><div class="br-bl"></div>
+    <div class="aff-header">
+      <span class="eyebrow c-cyan">▸ ДЕВИЗ ДНЯ</span>
+      <span class="eyebrow muted">КИН · ${kin}</span>
+    </div>
+    <div class="aff-body">`;
+  for (const line of affLines) {
+    html += `<div><span class="aff-prefix">&gt; </span><span class="aff-line">${line.trim()}</span></div>`;
+  }
+  html += `<div class="aff-prefix">&gt; <span class="blink">_</span></div>
+    </div>
+  </div>`;
 
   const summary = info.summary || '';
   if (summary)
-    html += `<div class="detail-section"><h3>📜 Описание</h3><p>${summary}</p></div>`;
+    html += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> АРХЕТИП</h3><p>${summary}</p></div>`;
 
   if (toneInfo.question_ru)
     html += `<div class="question-block"><div class="q">❓ ${toneInfo.question_ru}</div></div>`;
@@ -207,21 +248,23 @@ function renderOracle(kin) {
   function cell(k, role, area) {
     const { seal } = kinToToneSeal(k);
     const c = sealColor(seal);
-    return `<div class="oracle-cell ${area === 'main' ? 'main' : ''}" style="grid-area:${area}" data-oracle-role="${area}">
-      <div class="seal-icon">${sealImg(seal, 36)}</div>
-      <div class="kin-num" style="color:var(--${c})">${k}</div>
-      <div class="role">${role}</div></div>`;
+    const isBig = area === 'main';
+    return `<div class="oracle-cell c-${c} ${isBig ? 'main' : ''}" style="grid-area:${area}" data-oracle-role="${area}">
+      <div class="role">${role}</div>
+      <div class="seal-icon">${sealImg(seal, isBig ? 48 : 32, true)}</div>
+      <div class="kin-num-cell">${k}</div>
+    </div>`;
   }
 
   let html = `<div class="kin-card">
-    <h3 style="text-align:center;margin-bottom:4px">🔮 Оракул дня</h3>
+    <h3 class="card-title"><span class="dot"></span> КРЕСТ СУДЬБЫ · ORACLE</h3>
     <p class="section-intro">Четыре энергии, окружающие Кин дня. Вместе образуют «крест судьбы».</p>
     <div class="oracle-cross">
-      ${cell(o.guide, 'Управитель', 'guide')}
-      ${cell(o.antipode, 'Антипод', 'anti')}
-      ${cell(kin, 'Кин дня', 'main')}
-      ${cell(o.analog, 'Аналог', 'analog')}
-      ${cell(o.hidden, 'Оккультный', 'hidden')}
+      ${cell(o.guide, 'УПРАВИТЕЛЬ', 'guide')}
+      ${cell(o.antipode, 'АНТИПОД', 'anti')}
+      ${cell(kin, 'КИН ДНЯ', 'main')}
+      ${cell(o.analog, 'АНАЛОГ', 'analog')}
+      ${cell(o.hidden, 'ОККУЛЬТНЫЙ', 'hidden')}
     </div><div class="oracle-list">`;
 
   const roleAreaMap = { guide: 'guide', antipode: 'anti', analog: 'analog', hidden: 'hidden' };
@@ -230,14 +273,15 @@ function renderOracle(kin) {
     const k = o[r.key];
     const { seal } = kinToToneSeal(k);
     const si = sealsData[seal];
+    const c = sealColor(seal);
     const title = kinsData[String(k)]?.title || '';
     const sealDesc = si.description_ru ? si.description_ru.split('.')[0] + '.' : `${si.power_ru} · ${si.action_ru}`;
     html += `<div class="oracle-row" data-oracle-row="${roleAreaMap[r.key]}">
       <div class="oracle-arrow">${r.arrow}</div>
-      <div class="oracle-seal-img">${sealImg(seal, 32)}</div>
+      <div class="oracle-seal-img c-${c}">${sealImg(seal, 32, true)}</div>
       <div class="oracle-info">
         <div class="oracle-role">${r.name}</div>
-        <div class="oracle-name">Кин ${k} — ${title}</div>
+        <div class="oracle-name">КИН ${k} — ${title}</div>
         <div class="oracle-hint">${r.desc}</div>
         <div class="oracle-seal-desc">${sealDesc}</div>
       </div></div>`;
@@ -249,35 +293,35 @@ function renderOracle(kin) {
 /* ── Tab: Moon ── */
 function renderMoon() {
   const m = getMoon(currentDate);
-  if (m.isOot) return `<div class="doot-banner">⏳ День вне Времени<br>25 июля — день между годами 13-Лунного календаря</div>`;
+  if (m.isOot) return `<div class="doot-banner">⏳ ДЕНЬ ВНЕ ВРЕМЕНИ<br>25 ИЮЛЯ — ДЕНЬ МЕЖДУ ГОДАМИ 13-ЛУННОГО КАЛЕНДАРЯ</div>`;
 
   const yb = yearBearer(currentDate);
   const ybTitle = kinsData[String(yb.kin)]?.title || '';
   const ybTS = kinToToneSeal(yb.kin);
 
   return `<div class="kin-card">
-    <h3>🌙 13-Лунный календарь</h3>
+    <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> 13-ЛУННЫЙ КАЛЕНДАРЬ</h3>
     <p class="section-intro">Год из 13 лун по 28 дней. Каждая луна = 4 недели. Начало года — 26 июля.</p>
     <div class="info-grid" style="margin-top:12px">
-      <div class="info-item" style="cursor:default"><div class="info-label">Луна</div>
-        <div class="info-value">${m.moonNumber} из 13</div></div>
-      <div class="info-item" style="cursor:default"><div class="info-label">День</div>
-        <div class="info-value">${m.moonDay} из 28</div></div>
-      <div class="info-item" style="cursor:default"><div class="info-label">Неделя</div>
+      <div class="info-item" style="cursor:default"><div class="info-label">ЛУНА</div>
+        <div class="info-value">${m.moonNumber} ИЗ 13</div></div>
+      <div class="info-item" style="cursor:default"><div class="info-label">ДЕНЬ</div>
+        <div class="info-value">${m.moonDay} ИЗ 28</div></div>
+      <div class="info-item" style="cursor:default"><div class="info-label">НЕДЕЛЯ</div>
         <div class="info-value">${m.heptad} — ${m.heptadColor}</div></div>
-      <div class="info-item moon-clickable" data-action="plasma-expand"><div class="info-label">Плазма</div>
+      <div class="info-item moon-clickable" data-action="plasma-expand"><div class="info-label">ПЛАЗМА</div>
         <div class="info-value">${m.plasma.name}</div></div>
     </div>
-    <p style="margin-top:12px"><b>${m.moonName}</b></p>
+    <p style="margin-top:12px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em"><b>${m.moonName}</b></p>
   </div>
   <div class="detail-section" id="plasma-section">
-    <h3>🔥 Плазма: ${m.plasma.name}</h3>
+    <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПЛАЗМА: ${m.plasma.name}</h3>
     <p>${m.plasma.hint}</p>
-    <p style="color:var(--muted);margin-top:4px">Чакра: ${m.plasma.chakra}</p>
+    <p style="color:var(--ink-faint);margin-top:4px">Чакра: ${m.plasma.chakra}</p>
     <p class="section-intro">Плазма — ежедневная энергетическая практика. 7 плазм повторяются каждую неделю.</p>
   </div>
   <div class="detail-section moon-clickable" data-action="year-bearer-nav">
-    <h3>📅 Год: ${sealImg(ybTS.seal, 20)} ${ybTitle}</h3>
+    <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ГОД: ${sealImg(ybTS.seal, 20)} ${ybTitle}</h3>
     <p>Кин ${yb.kin} · ${yb.yearStart.getDate()}.${String(yb.yearStart.getMonth() + 1).padStart(2, '0')}.${yb.yearStart.getFullYear()} — 24.07.${yb.yearStart.getFullYear() + 1}</p>
     <p class="section-intro">Каждый год носит имя Кина, выпадающего на 26 июля. Нажмите, чтобы перейти к 26 июля.</p>
   </div>`;
@@ -294,27 +338,27 @@ function renderWave(kin, tone) {
   const p = pulsar(tone);
 
   let html = `<div class="kin-card">
-    <h3>🌀 Волна ${wave} — ${sealImg(waveSeal, 24)} ${wsi.name_ru}</h3>
+    <h3 class="card-title"><span class="dot"></span> ВОЛНА ${wave} — ${sealImg(waveSeal, 22)} ${wsi.name_ru}</h3>
     <p class="section-intro">Волна — 13-дневный цикл с единой темой. Всего 20 волн.</p>
-    <div style="margin-top:12px">
-      <p>▸ Сила: ${wsi.power_ru}</p>
-      <p>▸ Действие: ${wsi.action_ru}</p>
-      <p style="margin-top:8px">Сегодня день <b>${pos}</b> из 13</p>
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+      <p>▸ СИЛА: ${wsi.power_ru}</p>
+      <p>▸ ДЕЙСТВИЕ: ${wsi.action_ru}</p>
+      <p style="margin-top:8px;color:var(--ink)">СЕГОДНЯ ДЕНЬ <b>${pos}</b> ИЗ 13</p>
     </div>
   </div>
   <div class="detail-section">
-    <h3>🏰 Замок ${cast} — ${CASTLE_NAMES[cast]}</h3>
+    <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}</h3>
     <p>${CASTLE_HINTS[cast]}</p>
     <p class="section-intro">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
   </div>
   <div class="detail-section">
-    <h3>⚡ Пульсар: ${p.name}</h3>
+    <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПУЛЬСАР: ${p.name}</h3>
     <p>${p.hint}</p>
     <p class="section-intro">Пульсар — ритм внутри волны: какое измерение активно сегодня.</p>
   </div>`;
 
   // 13 kins of wave
-  html += `<div class="kin-card"><h3>Кины волны</h3><div style="margin-top:8px">`;
+  html += `<div class="kin-card"><h3 class="card-title"><span class="dot"></span> КИНЫ ВОЛНЫ</h3><div style="margin-top:8px">`;
   for (let i = 0; i < 13; i++) {
     const wk = waveFirst + i;
     const { tone: wt, seal: ws } = kinToToneSeal(wk);
@@ -323,12 +367,108 @@ function renderWave(kin, tone) {
     const title = kinsData[String(wk)]?.title || '';
     html += `<div class="wave-kin-row${isCurrent ? ' current' : ''}" data-wave-kin="${wk}">
       <span class="wave-kin-marker">${isCurrent ? '✦' : ''}</span>
-      <span class="wave-kin-img">${sealImg(ws, 32)}</span>
+      <span class="wave-kin-img">${sealImg(ws, 28)}</span>
       <span class="wave-kin-text">${title}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</span>
       <span class="wave-kin-num">${wk}</span>
     </div>`;
   }
   html += `</div></div>`;
+  return html;
+}
+
+/* ── Tab: Cycles ── */
+function renderCycles(kin) {
+  const { tone, seal } = kinToToneSeal(kin);
+  const info = kinsData[String(kin)];
+  const sealInfo = sealsData[seal];
+  const toneInfo = tonesData[tone];
+  const color = sealColor(seal);
+  const castIdx = castle(kin) - 1; // 0-based for cells
+  const castNum = castIdx + 1;
+  const wave = wavespell(kin);
+  const waveFirst = (wave - 1) * 13 + 1;
+  // Wave index within castle (0-3)
+  const waveInCastle = Math.floor(((kin - 1) % 52) / 13);
+  // Castle color mapping
+  const castleColors = ['red','cyan','blue','amber','violet'];
+
+  let html = '';
+
+  html += `<div style="text-align:center;margin:8px 0 4px">
+    <div class="eyebrow">ВЛОЖЕННЫЕ ЦИКЛЫ</div>
+    <div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:0.24em;margin-top:8px;text-transform:uppercase">← СВАЙПНИ ЛЮБУЮ ПОЛОСУ →</div>
+  </div>`;
+
+  // Castle strip (5 cells)
+  html += `<div class="cycle-strip c-${castleColors[castIdx]}">
+    <div class="cycle-strip-header">
+      <span class="eyebrow">ЗАМОК</span>
+      <span class="eyebrow muted">${castNum} / 5 · 52 ДНЯ</span>
+    </div>
+    <div class="cycle-strip-grid" style="grid-template-columns:repeat(5,1fr)" data-cycle="castle" data-unit="52">`;
+  for (let i = 0; i < 5; i++) {
+    const active = i === castIdx;
+    html += `<div class="cycle-cell c-${castleColors[i]}${active ? ' active' : ''}">
+      <div class="cell-num">${i + 1}</div>
+      <div class="cell-label">${CASTLE_SUB[i]}</div>
+    </div>`;
+  }
+  html += `</div></div>`;
+
+  // Wave strip (4 cells within castle)
+  const waveColors = ['red','cyan','blue','amber'];
+  html += `<div class="cycle-strip c-${waveColors[waveInCastle]}" style="margin-left:14px">
+    <div class="cycle-strip-header">
+      <span class="eyebrow">ВОЛНА</span>
+      <span class="eyebrow muted">${waveInCastle + 1} / 4 · 13 КИНОВ</span>
+    </div>
+    <div class="cycle-strip-grid" style="grid-template-columns:repeat(4,1fr)" data-cycle="wave" data-unit="13">`;
+  for (let i = 0; i < 4; i++) {
+    const active = i === waveInCastle;
+    const startKin = castIdx * 52 + i * 13 + 1;
+    html += `<div class="cycle-cell c-${waveColors[i]}${active ? ' active' : ''}">
+      <div class="cell-num">W${i + 1}</div>
+      <div class="cell-label">${startKin}–${startKin + 12}</div>
+    </div>`;
+  }
+  html += `</div></div>`;
+
+  // Tone strip (13 cells)
+  html += `<div class="cycle-strip c-${waveColors[waveInCastle]}" style="margin-left:28px">
+    <div class="cycle-strip-header">
+      <span class="eyebrow">ПУЛЬСАР · ТОН</span>
+      <span class="eyebrow muted">${toneInfo.name_ru.toUpperCase()}</span>
+    </div>
+    <div class="cycle-strip-grid" style="grid-template-columns:repeat(13,1fr)" data-cycle="tone" data-unit="1">`;
+  for (let i = 0; i < 13; i++) {
+    const active = i === tone - 1;
+    html += `<div class="cycle-cell c-${waveColors[waveInCastle]}${active ? ' active' : ''}" style="min-height:40px">
+      <div class="cell-num" style="font-size:12px">${i + 1}</div>
+    </div>`;
+  }
+  html += `</div></div>`;
+
+  // Info card
+  html += `<div class="cycle-info-card">
+    <div class="row">
+      <div class="c-${color}" style="width:80px;height:80px;flex-shrink:0;display:grid;place-items:center">
+        ${sealImg(seal, 72, true)}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="eyebrow">КИН · ${kin} / 260</div>
+        <div class="kin-num c-${color}" style="font-size:44px;margin-top:2px">${kin}</div>
+        <div class="display" style="font-size:10px;margin-top:6px;opacity:0.85">
+          ЗАМОК ${castNum} · ВОЛНА ${waveInCastle + 1} · ТОН ${tone}
+        </div>
+      </div>
+    </div>
+    <div class="hr"></div>
+    <div class="dim" style="font-size:12px;line-height:1.5;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em">
+      260 ДНЕЙ = 5 ЗАМКОВ × 4 ВОЛНЫ × 13 ТОНОВ.<br>
+      КАЖДЫЙ ТОН ВНУТРИ ВОЛНЫ, ВОЛНА ВНУТРИ ЗАМКА.
+    </div>
+  </div>`;
+
   return html;
 }
 
@@ -357,15 +497,16 @@ function renderTzolkin(currentKin) {
     birthKin = dreamspellKin(new Date(y, m - 1, d));
   }
 
-  let html = `<div class="kin-card" style="padding:8px">
-    <h3 style="text-align:center;margin-bottom:4px;font-size:14px">📅 Цолькин — 260-дневный цикл</h3>
+  // Neon legend colors
+  let html = `<div class="kin-card" style="padding:10px">
+    <h3 class="card-title" style="font-size:12px"><span class="dot"></span> ЦОЛЬКИН — 260-ДНЕВНЫЙ ЦИКЛ</h3>
     <div class="tzolkin-legend">
-      <span><span class="legend-swatch" style="background:#c0392b"></span>Красный</span>
-      <span><span class="legend-swatch" style="background:#ecf0f1"></span>Белый</span>
-      <span><span class="legend-swatch" style="background:#2980b9"></span>Синий</span>
-      <span><span class="legend-swatch" style="background:#f1c40f"></span>Жёлтый</span>
-      <span><span class="legend-swatch" style="background:#4caf50"></span>ГАП</span>
-      <span><span class="legend-swatch" style="background:#666"></span>Мист.</span>
+      <span><span class="legend-swatch" style="background:oklch(0.45 0.15 22)"></span>Красный</span>
+      <span><span class="legend-swatch" style="background:oklch(0.75 0.08 195)"></span>Белый</span>
+      <span><span class="legend-swatch" style="background:oklch(0.40 0.16 265)"></span>Синий</span>
+      <span><span class="legend-swatch" style="background:oklch(0.72 0.12 85)"></span>Жёлтый</span>
+      <span><span class="legend-swatch" style="background:oklch(0.55 0.14 155)"></span>ГАП</span>
+      <span><span class="legend-swatch" style="background:rgba(120,100,160,0.4)"></span>Мист.</span>
     </div>
   </div>`;
 
@@ -402,8 +543,8 @@ function renderMyKinContent() {
 
   if (!birthDateStr) {
     modal.innerHTML = `
-      <h3>👤 Мой кин</h3>
-      <p style="color:var(--muted);margin-bottom:8px">Укажите дату рождения, чтобы узнать свой Кин Судьбы и связь с текущим днём.</p>
+      <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> МОЙ КИН СУДЬБЫ</h3>
+      <p style="color:var(--ink-faint);margin-bottom:12px;font-size:13px;line-height:1.5">Укажите дату рождения, чтобы узнать свой Кин Судьбы и связь с текущим днём.</p>
       <div class="birth-input-group">
         <input type="date" id="birth-date-input">
         <button id="birth-save-btn">OK</button>
@@ -478,27 +619,44 @@ function renderMyKinContent() {
   }
 
   modal.innerHTML = `
-    <h3>👤 Мой кин</h3>
-    <div style="text-align:center;margin-bottom:12px">
-      <div class="seal-badge ${bColor}" style="width:64px;height:64px;line-height:64px;margin:0 auto 8px">
-        ${sealImg(bSeal, 56)}
+    <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> МОЙ КИН</h3>
+    <div style="text-align:center;margin-bottom:14px">
+      <div class="seal-badge ${bColor} c-${bColor}" style="width:80px;height:80px;margin:0 auto 8px">
+        ${sealImg(bSeal, 68, true)}
       </div>
-      <div style="font-size:28px;font-weight:800;color:var(--${bColor})">${bKin}${bGap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
-      <div style="font-size:16px;font-weight:600">${bInfo?.title || ''}</div>
-      <div style="font-size:12px;color:var(--muted)">${formatDateRu(birthD)}</div>
+      <div class="kin-num c-${bColor}" style="font-size:36px">${bKin}${bGap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
+      <div class="display" style="font-size:14px;margin-top:6px">${bInfo?.title || ''}</div>
+      <div class="eyebrow muted" style="margin-top:4px">${formatDateRu(birthD).toUpperCase()}</div>
     </div>
-    <div style="font-size:13px;margin-bottom:8px">
-      <p>${sealImg(bSeal, 16)} Печать: ${bSealInfo.name_ru} · ${toneImg(bTone, 14)} Тон: ${bTone} ${bToneInfo.name_ru}</p>
-      <p>Волна: ${bWave} · Замок: ${CASTLE_NAMES[bCastle]?.split(' ')[0] || bCastle}</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--hairline-2);border-radius:12px;padding:10px">
+        <div class="eyebrow">ПЕЧАТЬ</div>
+        <div class="display" style="font-size:11px;margin-top:4px">${sealImg(bSeal, 16)} ${bSealInfo.name_ru}</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--hairline-2);border-radius:12px;padding:10px">
+        <div class="eyebrow">ТОН</div>
+        <div class="display" style="font-size:11px;margin-top:4px">${toneImg(bTone, 14)} ${bTone} ${bToneInfo.name_ru}</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--hairline-2);border-radius:12px;padding:10px">
+        <div class="eyebrow">ВОЛНА</div>
+        <div class="display" style="font-size:11px;margin-top:4px">${bWave}</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--hairline-2);border-radius:12px;padding:10px">
+        <div class="eyebrow">ЗАМОК</div>
+        <div class="display" style="font-size:11px;margin-top:4px">${CASTLE_NAMES[bCastle]?.split(' ')[0] || bCastle}</div>
+      </div>
     </div>
-    <h3 style="font-size:13px;color:var(--muted);margin-top:12px">Связь с текущим днём</h3>
+    <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span> СВЯЗЬ С ТЕКУЩИМ ДНЁМ</h3>
     <div class="connection-list">
       ${connections.map(c => `<div class="connection-item"><span class="connection-icon">${c.icon}</span><span class="connection-text">${c.text}</span></div>`).join('')}
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-top:12px">Следующий ваш Кин: <b>${formatDateRu(nextDate)}</b></p>
-    <button class="birth-clear-btn" id="birth-clear-btn">Сбросить дату рождения</button>
+    <div class="spread" style="margin-top:14px">
+      <span class="eyebrow">СЛЕДУЮЩИЙ ВАШ КИН</span>
+      <span class="display" style="font-size:12px">${formatDateRu(nextDate).toUpperCase()}</span>
+    </div>
+    <button class="birth-clear-btn" id="birth-clear-btn">СБРОСИТЬ ДАТУ РОЖДЕНИЯ</button>
     <br>
-    <button class="modal-close" id="my-kin-close">✕ Закрыть</button>`;
+    <button class="modal-close" id="my-kin-close">✕ ЗАКРЫТЬ</button>`;
 }
 
 function showMyKinModal() {
@@ -541,7 +699,6 @@ function bindMyKinEvents() {
   }
 }
 
-/* ── Castle popup ── */
 /* ── Render dispatcher ── */
 function render() {
   const kin = dreamspellKin(currentDate);
@@ -555,6 +712,10 @@ function render() {
         + renderOracle(kin)
         + renderWave(kin, tone)
         + renderMoon();
+      break;
+    case 'cycles':
+      if (cyclesKin === null) cyclesKin = kin;
+      card.innerHTML = renderCycles(cyclesKin);
       break;
     case 'tzolkin': card.innerHTML = renderTzolkin(kin); break;
     case 'personal': showMyKinModal(); card.innerHTML = ''; break;
@@ -666,12 +827,48 @@ function bindCardEvents(kin, tone, seal) {
       switchTab('main');
     });
   });
+
+  // Cycles tab: swipeable strips
+  card.querySelectorAll('.cycle-strip-grid[data-cycle]').forEach(strip => {
+    let startX = 0;
+    let cellW = 0;
+    let accum = 0;
+    const unit = +strip.dataset.unit;
+
+    strip.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+      cellW = strip.getBoundingClientRect().width / strip.children.length;
+      startX = e.clientX;
+      accum = 0;
+      try { strip.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+    });
+
+    strip.addEventListener('pointermove', (e) => {
+      if (!cellW) return;
+      const dx = e.clientX - startX;
+      const cells = Math.round(-dx / cellW);
+      if (cells !== accum) {
+        const step = (cells - accum) * unit;
+        accum = cells;
+        // Update cyclesKin
+        let newKin = cyclesKin + step;
+        while (newKin < 1) newKin += 260;
+        while (newKin > 260) newKin -= 260;
+        cyclesKin = newKin;
+        render();
+      }
+    });
+
+    strip.addEventListener('pointerup', () => { cellW = 0; });
+    strip.addEventListener('pointercancel', () => { cellW = 0; });
+  });
 }
 
 /* ── Setup permanent events ── */
 function setupEvents() {
-  document.getElementById('prev').addEventListener('click', () => { currentDate = addDays(currentDate, -1); expandedPanel = null; render(); });
-  document.getElementById('next').addEventListener('click', () => { currentDate = addDays(currentDate, 1); expandedPanel = null; render(); });
+  document.getElementById('prev').addEventListener('click', () => { currentDate = addDays(currentDate, -1); expandedPanel = null; cyclesKin = null; render(); });
+  document.getElementById('next').addEventListener('click', () => { currentDate = addDays(currentDate, 1); expandedPanel = null; cyclesKin = null; render(); });
 
   const datePicker = document.getElementById('date-picker');
   document.getElementById('date-display').addEventListener('click', () => {
@@ -683,6 +880,7 @@ function setupEvents() {
       const [y, m, d] = datePicker.value.split('-').map(Number);
       currentDate = new Date(y, m - 1, d);
       expandedPanel = null;
+      cyclesKin = null;
       render();
     }
   });
@@ -707,22 +905,16 @@ function setupEvents() {
   let startX = 0;
   card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
   card.addEventListener('touchend', e => {
-    if (currentTab === 'tzolkin') return;
+    if (currentTab === 'tzolkin' || currentTab === 'cycles') return;
     const diff = e.changedTouches[0].clientX - startX;
-    if (Math.abs(diff) > 60) { currentDate = addDays(currentDate, diff > 0 ? -1 : 1); expandedPanel = null; render(); }
+    if (Math.abs(diff) > 60) { currentDate = addDays(currentDate, diff > 0 ? -1 : 1); expandedPanel = null; cyclesKin = null; render(); }
   }, { passive: true });
 
-  // Telegram WebApp integration
+  // Telegram WebApp integration — do NOT override our neon theme colors
   if (window.Telegram?.WebApp) {
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
-    const r = document.documentElement;
-    if (tg.themeParams.bg_color) r.style.setProperty('--bg', tg.themeParams.bg_color);
-    if (tg.themeParams.secondary_bg_color) r.style.setProperty('--card-bg', tg.themeParams.secondary_bg_color);
-    if (tg.themeParams.text_color) r.style.setProperty('--text', tg.themeParams.text_color);
-    if (tg.themeParams.hint_color) r.style.setProperty('--muted', tg.themeParams.hint_color);
-    if (tg.themeParams.button_color) r.style.setProperty('--accent', tg.themeParams.button_color);
   }
 }
 
