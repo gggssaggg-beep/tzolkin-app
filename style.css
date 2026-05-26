@@ -393,17 +393,17 @@ html, body {
    ───────────────────────────────────────────────────────────── */
 .expand-panel {
   background: var(--bg-card);
-  border: 1px solid var(--hairline-2);
+  border: 1px solid transparent;
   border-radius: var(--radius);
-  margin-bottom: 0;
   overflow: hidden;
   max-height: 0;
   opacity: 0;
-  transition: max-height .35s ease, opacity .25s ease, padding .3s ease, margin .3s ease;
   padding: 0 18px;
+  margin-bottom: 0;
+  transition: max-height .3s ease, opacity .25s ease, padding .25s ease, margin .25s ease, border-color .25s ease;
 }
 .expand-panel.open {
-  max-height: 600px;
+  max-height: 500px;
   opacity: 1;
   padding: 16px 18px;
   margin-bottom: 12px;

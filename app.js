@@ -214,17 +214,17 @@ function renderMain(kin, tone, seal) {
   const p = pulsar(tone);
   html += `<div class="expand-panel${expandedPanel === 'wave' ? ' open' : ''}" id="panel-wave">
     <h3>🌀 ВОЛНА ${wave} — ${wsi.name_ru}</h3>
+    <p class="section-intro">Волна — 13-дневный цикл с единой темой. Всего 20 волн в цикле Цолькин.</p>
     <p><b>Сила:</b> ${wsi.power_ru} · <b>Действие:</b> ${wsi.action_ru}<br>
     <b>Позиция:</b> день ${(kin - 1) % 13 + 1} из 13<br>
     <b>Пульсар:</b> ${p.name} — ${p.hint}</p>
-    <p class="section-intro" style="margin-top:8px">Волна — 13-дневный цикл с единой темой. Всего 20 волн в цикле Цолькин.</p>
     <button class="expand-close" data-close="wave">✕ СВЕРНУТЬ</button>
   </div>`;
 
   html += `<div class="expand-panel${expandedPanel === 'castle' ? ' open' : ''}" id="panel-castle">
     <h3>🏰 ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}</h3>
+    <p class="section-intro">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
     <p>${CASTLE_HINTS[cast]}</p>
-    <p class="section-intro" style="margin-top:8px">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
     <button class="expand-close" data-close="castle">✕ СВЕРНУТЬ</button>
   </div>`;
 
@@ -329,14 +329,14 @@ function renderMoon() {
   </div>
   <div class="detail-section" id="plasma-section">
     <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПЛАЗМА: ${m.plasma.name}</h3>
+    <p class="section-intro">Плазма — ежедневная энергетическая практика. 7 плазм повторяются каждую неделю.</p>
     <p>${m.plasma.hint}</p>
     <p class="section-intro" style="margin-top:4px">Чакра: ${m.plasma.chakra}</p>
-    <p class="section-intro">Плазма — ежедневная энергетическая практика. 7 плазм повторяются каждую неделю.</p>
   </div>
   <div class="detail-section moon-clickable" data-action="year-bearer-nav">
     <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ГОД: ${sealImg(ybTS.seal, 20)} ${ybTitle}</h3>
-    <p>Кин ${yb.kin} · ${yb.yearStart.getDate()}.${String(yb.yearStart.getMonth() + 1).padStart(2, '0')}.${yb.yearStart.getFullYear()} — 24.07.${yb.yearStart.getFullYear() + 1}</p>
     <p class="section-intro">Каждый год носит имя Кина, выпадающего на 26 июля. Нажмите, чтобы перейти к 26 июля.</p>
+    <p>Кин ${yb.kin} · ${yb.yearStart.getDate()}.${String(yb.yearStart.getMonth() + 1).padStart(2, '0')}.${yb.yearStart.getFullYear()} — 24.07.${yb.yearStart.getFullYear() + 1}</p>
   </div>`;
 }
 
@@ -361,13 +361,13 @@ function renderWave(kin, tone) {
   </div>
   <div class="detail-section">
     <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}</h3>
-    <p>${CASTLE_HINTS[cast]}</p>
     <p class="section-intro">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
+    <p>${CASTLE_HINTS[cast]}</p>
   </div>
   <div class="detail-section">
     <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПУЛЬСАР: ${p.name}</h3>
-    <p>${p.hint}</p>
     <p class="section-intro">Пульсар — ритм внутри волны: какое измерение активно сегодня.</p>
+    <p>${p.hint}</p>
   </div>`;
 
   // 13 kins of wave
