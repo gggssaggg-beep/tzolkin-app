@@ -267,17 +267,7 @@ function renderMain(kin, tone, seal) {
   // WaveBar
   html += renderWaveBar(tone, 'c-' + color);
 
-  html += `<div class="info-grid">
-      <div class="info-item" style="cursor:default">
-        <div class="info-label">ПЕЧАТЬ</div>
-        <div class="info-value">${sealImg(seal, 22)} ${sealInfo.name_ru}</div>
-        <div class="info-sub">${sealInfo.essence_ru}</div>
-      </div>
-      <div class="info-item" style="cursor:default">
-        <div class="info-label">ТОН</div>
-        <div class="info-value">${toneImg(tone, 18)} ${tone} — ${toneInfo.name_ru}</div>
-        <div class="info-sub">${toneInfo.action_ru}</div>
-      </div>
+  html += `<div class="info-grid" style="grid-template-columns:1fr 1fr">
       <div class="info-item" data-action="wave-popup">
         <div class="info-label">ВОЛНА ▸</div>
         <div class="info-value">${sealImg(waveSeal, 22)} ${wave} — ${sealsData[waveSeal].name_ru}</div>
@@ -289,6 +279,28 @@ function renderMain(kin, tone, seal) {
         <div class="info-sub">${CASTLE_HINTS[cast]?.split('—')[0]?.trim() || ''}</div>
       </div>
     </div>
+  </div>`;
+
+  // Seal detail block
+  html += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-${color});box-shadow:0 0 8px var(--n-${color})"></span>
+      ПЕЧАТЬ — ${sealImg(seal, 20)} ${sealInfo.name_ru}</h3>
+    <div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:1.9;color:var(--ink-dim);margin-top:10px">
+      <p>▸ ${sealInfo.name_maya}</p>
+      <p>▸ СУТЬ: ${sealInfo.essence_ru}</p>
+      <p>▸ СИЛА: ${sealInfo.power_ru}</p>
+      <p>▸ ДЕЙСТВИЕ: ${sealInfo.action_ru}</p>
+    </div>
+  </div>`;
+
+  // Tone detail block
+  html += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>
+      ТОН ${tone} — ${toneImg(tone, 20)} ${toneInfo.name_ru}</h3>
+    <div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:1.9;color:var(--ink-dim);margin-top:10px">
+      <p>▸ ФУНКЦИЯ: ${toneInfo.action_ru}</p>
+    </div>
+    ${toneInfo.question_ru ? `<div class="question-block" style="margin-top:12px"><div class="q">❓ ${toneInfo.question_ru}</div></div>` : ''}
   </div>`;
 
   // Affirmation with bracket frame
@@ -310,9 +322,6 @@ function renderMain(kin, tone, seal) {
   const summary = info.summary || '';
   if (summary)
     html += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> АРХЕТИП</h3><p>${summary}</p></div>`;
-
-  if (toneInfo.question_ru)
-    html += `<div class="question-block"><div class="q">❓ ${toneInfo.question_ru}</div></div>`;
 
   return html;
 }
