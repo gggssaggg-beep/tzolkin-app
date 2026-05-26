@@ -1,4 +1,4 @@
-const CACHE = 'tzolkin-v12';
+const CACHE = 'tzolkin-v13';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'tzolkin.js', 'manifest.json',
   'data/seals.json', 'data/tones.json', 'data/kin_descriptions.json'];
 
