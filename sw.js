@@ -1,4 +1,4 @@
-const CACHE = 'tzolkin-v3';
+const CACHE = 'tzolkin-v4';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'tzolkin.js', 'manifest.json',
   'data/seals.json', 'data/tones.json', 'data/kin_descriptions.json'];
 
@@ -16,6 +16,10 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
+    fetch(e.request).then(r => {
+      const clone = r.clone();
+      caches.open(CACHE).then(c => c.put(e.request, clone));
+      return r;
+    }).catch(() => caches.match(e.request))
   );
 });
