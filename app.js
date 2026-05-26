@@ -124,7 +124,7 @@ function renderMain(kin, tone, seal) {
 
   html += `<div class="kin-card">
     <div class="kin-header">
-      <div class="seal-badge ${color}">${sealImg(seal, 64)}</div>
+      <div class="seal-badge ${color}">${sealImg(seal, 80)}</div>
       <div class="kin-number" style="color:var(--${color})">${kin}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
       <div class="kin-title">${info.title}</div>
       <div class="kin-subtitle">${sealInfo.name_maya} · ${toneImg(tone, 18)} Тон ${tone} — ${toneInfo.name_ru}</div>
@@ -175,6 +175,10 @@ function renderMain(kin, tone, seal) {
 
   html += `<div class="affirmation">
     <div class="label">🌀 Девиз дня</div>${info.affirmation}</div>`;
+
+  const summary = info.summary || '';
+  if (summary)
+    html += `<div class="detail-section"><h3>📜 Описание</h3><p>${summary}</p></div>`;
 
   if (toneInfo.question_ru)
     html += `<div class="question-block"><div class="q">❓ ${toneInfo.question_ru}</div></div>`;
