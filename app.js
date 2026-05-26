@@ -337,12 +337,12 @@ function mayaDots(tone) {
   const bars = Math.floor((tone - 1) / 5);
   const dots = (tone - 1) % 5;
   let s = '';
-  for (let i = 0; i < bars; i++) s += '<span class="maya-bar"></span>';
   if (dots > 0) {
     s += '<span class="maya-dots">';
     for (let i = 0; i < dots; i++) s += '<span class="maya-dot"></span>';
     s += '</span>';
   }
+  for (let i = 0; i < bars; i++) s += '<span class="maya-bar"></span>';
   return `<span class="maya-num">${s}</span>`;
 }
 
