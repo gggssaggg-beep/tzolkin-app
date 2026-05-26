@@ -100,16 +100,14 @@ function showInfoPopup(title, bodyHtml) {
 }
 
 /* ── Haptic feedback ── */
-const inTelegram = !!window.Telegram?.WebApp?.initData;
 function haptic(strength = 'light') {
+  const ms = { light: 25, medium: 50, heavy: 80, selection: 15 }[strength] ?? 25;
+  try { navigator.vibrate?.(ms); } catch (_) {}
   try {
-    if (inTelegram) {
-      const hf = window.Telegram.WebApp.HapticFeedback;
+    const hf = window.Telegram?.WebApp?.HapticFeedback;
+    if (hf) {
       if (strength === 'selection') hf.selectionChanged();
       else hf.impactOccurred(strength);
-    } else {
-      const ms = strength === 'medium' ? 18 : strength === 'heavy' ? 35 : strength === 'selection' ? 6 : 10;
-      navigator.vibrate?.(ms);
     }
   } catch (_) {}
 }
