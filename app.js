@@ -331,29 +331,13 @@ function mayaDots(tone) {
   return `<span class="maya-num">${s}</span>`;
 }
 
-/* ── GAP portal pattern — 52 canonical portals (DNA double helix) ── */
-const GAP_GRID = new Set();
-(function buildGapSpiral() {
-  // rows (0-indexed) for each distance from center column
-  // Pattern widens as strands approach the center, forming a double helix
-  const layers = [
-    [0, 19],                         // cols 1,13: 2 cells
-    [1, 18],                         // cols 2,12: 2 cells
-    [2, 3, 16, 17],                  // cols 3,11: 4 cells
-    [3, 4, 5, 14, 15, 16],           // cols 4,10: 6 cells
-    [5, 6, 7, 12, 13, 14],           // cols 5,9:  6 cells
-    [7, 8, 9, 10, 11, 12],           // cols 6,8:  6 cells
-  ];
-  for (let i = 0; i < 6; i++) {
-    const leftCol = i;       // 0-indexed columns 0..5
-    const rightCol = 12 - i; // 0-indexed columns 12..7
-    for (const row of layers[i]) {
-      GAP_GRID.add(row + leftCol * 20 + 1);
-      if (leftCol !== rightCol)
-        GAP_GRID.add(row + rightCol * 20 + 1);
-    }
-  }
-})();
+/* ── GAP portals — canonical 52 positions from Harmonic Index ── */
+const GAP_GRID = new Set([
+  1,20,22,39,43,50,51,58,64,69,72,77,85,88,93,96,
+  106,107,108,109,110,111,112,113,114,115,
+  146,147,148,149,150,151,152,153,154,155,
+  165,168,173,176,184,189,192,197,203,210,211,218,222,239,241,260
+]);
 
 function isGapGrid(kin) { return GAP_GRID.has(kin); }
 
