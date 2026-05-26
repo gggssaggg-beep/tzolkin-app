@@ -918,8 +918,72 @@ function setupEvents() {
   }
 }
 
+/* ── Particles ── */
+function initParticles() {
+  const canvas = document.getElementById('particles');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const COLORS = [
+    [255, 255, 255],
+    [180, 220, 255],
+    [220, 180, 255],
+    [255, 220, 180],
+    [180, 255, 220],
+  ];
+
+  const dots = Array.from({ length: 65 }, () => ({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: Math.random() * 1.8 + 0.6,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.2 - 0.1,
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    phase: Math.random() * Math.PI * 2,
+  }));
+
+  function frame(t) {
+    ctx.clearRect(0, 0, W, H);
+    for (const d of dots) {
+      d.x += d.vx;
+      d.y += d.vy;
+      if (d.x < -10) d.x = W + 10;
+      if (d.x > W + 10) d.x = -10;
+      if (d.y < -10) d.y = H + 10;
+      if (d.y > H + 10) d.y = -10;
+
+      const pulse = 0.5 + 0.5 * Math.sin(t * 0.001 + d.phase);
+      const alpha = 0.25 + 0.55 * pulse;
+      const [r, g, b] = d.color;
+
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+      ctx.fill();
+
+      if (d.r > 1) {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r * 3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r},${g},${b},${alpha * 0.15})`;
+        ctx.fill();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
 /* ── Init ── */
 async function init() {
+  initParticles();
   await loadData();
   setupEvents();
   render();
