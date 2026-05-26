@@ -366,8 +366,8 @@ body {
 }
 .tzolkin-grid {
   display: grid;
-  grid-template-columns: 28px repeat(13, 32px);
-  grid-template-rows: repeat(20, 38px);
+  grid-template-columns: 22px repeat(13, 24px);
+  grid-template-rows: repeat(20, 28px);
   gap: 1px;
   min-width: fit-content;
 }
@@ -389,20 +389,20 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 700;
   border-radius: 2px;
   cursor: pointer;
   transition: transform .1s, box-shadow .2s;
-  min-width: 32px;
-  min-height: 38px;
+  min-width: 24px;
+  min-height: 28px;
   position: relative;
   gap: 0;
-  padding: 1px;
+  padding: 0;
 }
 .tzolkin-cell:hover { transform: scale(1.15); z-index: 2; }
 .tzolkin-cell:active { transform: scale(0.95); }
-.tz-kin-num { font-size: 9px; font-weight: 800; }
+.tz-kin-num { font-size: 8px; font-weight: 800; }
 .tzolkin-cell.color-red    { background: #c0392b; color: #fff; }
 .tzolkin-cell.color-white  { background: #ecf0f1; color: #222; }
 .tzolkin-cell.color-blue   { background: #2980b9; color: #fff; }
@@ -603,7 +603,7 @@ body {
 }
 .maya-bar {
   display: block;
-  width: 12px;
+  width: 10px;
   height: 2px;
   background: currentColor;
   border-radius: 1px;
@@ -614,8 +614,8 @@ body {
   justify-content: center;
 }
 .maya-dot {
-  width: 3px;
-  height: 3px;
+  width: 2px;
+  height: 2px;
   border-radius: 50%;
   background: currentColor;
 }
