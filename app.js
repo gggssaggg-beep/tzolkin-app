@@ -467,8 +467,8 @@ function updateCyclesActive() {
   const castleColors = ['red','cyan','blue','amber','violet'];
   const waveColors = ['red','cyan','blue','amber'];
 
-  // dragUnit===52 means only update castle strip; lower strips stay frozen during drag
-  const lowerActive = dragUnit !== 52;
+  // freeze only the bottom (tone) strip when dragging castle
+  const toneActive = dragUnit !== 52;
 
   // Update castle cells + counter
   const castleCells = document.querySelectorAll('[data-cycle="castle"] .cycle-cell');
@@ -476,14 +476,14 @@ function updateCyclesActive() {
   const castNum = document.getElementById('cyc-castle-num');
   if (castNum) castNum.textContent = `${castIdx + 1} / 5 · 52 ДНЯ`;
 
-  // Update wave cells + counter (skip when dragging castle)
-  if (lowerActive) {
-    const waveCells = document.querySelectorAll('[data-cycle="wave"] .cycle-cell');
-    waveCells.forEach((c, i) => c.classList.toggle('active', i === waveInCastle));
-    const waveNum = document.getElementById('cyc-wave-num');
-    if (waveNum) waveNum.textContent = `${waveInCastle + 1} / 4 · 13 КИНОВ`;
+  // Update wave cells + counter (always — cascades from castle drag too)
+  const waveCells = document.querySelectorAll('[data-cycle="wave"] .cycle-cell');
+  waveCells.forEach((c, i) => c.classList.toggle('active', i === waveInCastle));
+  const waveNum = document.getElementById('cyc-wave-num');
+  if (waveNum) waveNum.textContent = `${waveInCastle + 1} / 4 · 13 КИНОВ`;
 
-    // Update tone cells + counter
+  // Update tone cells + counter (skip when dragging castle)
+  if (toneActive) {
     const toneCells = document.querySelectorAll('[data-cycle="tone"] .cycle-cell');
     toneCells.forEach((c, i) => c.classList.toggle('active', i === tone - 1));
     const toneName = document.getElementById('cyc-tone-name');
@@ -493,10 +493,8 @@ function updateCyclesActive() {
   // Update strip colors
   const strips = document.querySelectorAll('.cycle-strip');
   if (strips[0]) strips[0].className = `cycle-strip c-${castleColors[castIdx]}`;
-  if (lowerActive) {
-    if (strips[1]) strips[1].className = `cycle-strip c-${waveColors[waveInCastle]}`;
-    if (strips[2]) strips[2].className = `cycle-strip c-${waveColors[waveInCastle]}`;
-  }
+  if (strips[1]) strips[1].className = `cycle-strip c-${waveColors[waveInCastle]}`;
+  if (toneActive && strips[2]) strips[2].className = `cycle-strip c-${waveColors[waveInCastle]}`;
 
   // Update info card
   const infoCard = document.querySelector('.cycle-info-card');
@@ -521,10 +519,10 @@ function updateCyclesActive() {
     </div>`;
   }
 
-  // Move smooth markers (skip lower strips when dragging castle)
+  // Move smooth markers (skip tone strip when dragging castle)
   document.querySelectorAll('.cycle-strip-grid[data-cycle]').forEach(grid => {
     const gridUnit = +grid.dataset.unit;
-    if (dragUnit === 52 && gridUnit !== 52) return;
+    if (dragUnit === 52 && gridUnit === 1) return;
     const marker = grid.querySelector('.cycle-marker');
     const activeCell = grid.querySelector('.cycle-cell.active');
     if (!marker || !activeCell) return;
