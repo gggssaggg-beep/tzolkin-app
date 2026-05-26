@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Кин дня — Цолькин</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="nav">
+    <button id="prev" class="nav-btn" aria-label="Previous day">&larr;</button>
+    <div id="date-display" class="date-tap"></div>
+    <button id="next" class="nav-btn" aria-label="Next day">&rarr;</button>
+  </header>
+  <input type="date" id="date-picker" style="display:none">
+
+  <main id="card"></main>
+
+  <nav id="tabs">
+    <button class="tab active" data-tab="main">Кин</button>
+    <button class="tab" data-tab="oracle">Оракул</button>
+    <button class="tab" data-tab="details">Детали</button>
+  </nav>
+</div>
+
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

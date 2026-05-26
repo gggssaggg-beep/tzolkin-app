@@ -1,0 +1,232 @@
+:root {
+  --bg: #1a1a2e;
+  --card-bg: #16213e;
+  --text: #e8e8e8;
+  --muted: #9ba4b4;
+  --accent: #e94560;
+  --red: #e94560;
+  --white: #f0f0f0;
+  --blue: #4a9bd9;
+  --yellow: #f5c518;
+  --radius: 16px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 12px 80px;
+}
+
+/* Navigation */
+#nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0 12px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+.nav-btn {
+  width: 44px; height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.nav-btn:active { background: #1f2b47; }
+.date-tap {
+  text-align: center;
+  cursor: pointer;
+  padding: 6px 16px;
+  border-radius: 12px;
+  transition: background .2s;
+}
+.date-tap:active { background: var(--card-bg); }
+#date-display .day { font-size: 14px; color: var(--muted); }
+#date-display .full { font-size: 17px; font-weight: 600; }
+
+/* Main card */
+.kin-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 24px 20px;
+  margin-bottom: 12px;
+}
+.kin-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.kin-number {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.kin-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.kin-subtitle { font-size: 13px; color: var(--muted); }
+
+.seal-badge {
+  display: inline-block;
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+  font-size: 36px;
+  line-height: 64px;
+  text-align: center;
+}
+.seal-badge.red    { background: rgba(233,69,96,.2); color: var(--red); }
+.seal-badge.white  { background: rgba(240,240,240,.15); color: var(--white); }
+.seal-badge.blue   { background: rgba(74,155,217,.2); color: var(--blue); }
+.seal-badge.yellow { background: rgba(245,197,24,.2); color: var(--yellow); }
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+.info-item {
+  background: rgba(255,255,255,.04);
+  border-radius: 12px;
+  padding: 12px;
+}
+.info-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.info-value { font-size: 15px; font-weight: 600; margin-top: 2px; }
+
+.affirmation {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.6;
+  white-space: pre-line;
+}
+.affirmation .label { font-style: normal; color: var(--text); font-weight: 600; margin-bottom: 8px; }
+
+.question-block {
+  background: linear-gradient(135deg, rgba(233,69,96,.1), rgba(74,155,217,.1));
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.question-block .q { font-size: 16px; font-weight: 500; }
+
+/* Oracle */
+.oracle-cross {
+  display: grid;
+  grid-template-areas:
+    ". guide ."
+    "anti main analog"
+    ". hidden .";
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin: 20px 0;
+}
+.oracle-cell {
+  text-align: center;
+  padding: 12px 4px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.04);
+}
+.oracle-cell.main { background: rgba(255,255,255,.08); }
+.oracle-cell .seal-icon { font-size: 28px; }
+.oracle-cell .kin-num { font-size: 13px; font-weight: 700; margin-top: 4px; }
+.oracle-cell .role { font-size: 10px; color: var(--muted); }
+
+.oracle-list { margin-top: 12px; }
+.oracle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+.oracle-row:last-child { border: none; }
+.oracle-arrow { font-size: 16px; width: 24px; text-align: center; }
+.oracle-info { flex: 1; }
+.oracle-role { font-size: 11px; color: var(--muted); }
+.oracle-name { font-size: 14px; font-weight: 500; }
+
+/* Details */
+.detail-section {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+.detail-section h3 { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+.detail-section p { font-size: 14px; line-height: 1.5; }
+
+/* Tabs */
+#tabs {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  background: var(--card-bg);
+  border-top: 1px solid rgba(255,255,255,.08);
+  padding: 8px 0 env(safe-area-inset-bottom, 8px);
+  z-index: 20;
+}
+.tab {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px;
+  cursor: pointer;
+  transition: color .2s;
+}
+.tab.active { color: var(--accent); }
+
+/* Wave start banner */
+.wave-banner {
+  background: linear-gradient(135deg, rgba(233,69,96,.15), rgba(74,155,217,.15));
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.wave-banner .emoji { font-size: 24px; }
+.wave-banner .text { font-size: 14px; font-weight: 500; margin-top: 4px; }
+
+/* Day out of time */
+.doot-banner {
+  background: linear-gradient(135deg, rgba(233,69,96,.2), rgba(245,197,24,.2));
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Hidden sections */
+.section { display: none; }
+.section.active { display: block; }
+
+/* Swipe hint animation */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.kin-card, .affirmation, .question-block, .oracle-cross, .detail-section, .wave-banner {
+  animation: fadeIn .3s ease;
+}
