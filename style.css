@@ -366,9 +366,9 @@ body {
 }
 .tzolkin-grid {
   display: grid;
-  grid-template-columns: 40px repeat(13, 30px);
-  grid-template-rows: 28px repeat(20, 30px);
-  gap: 2px;
+  grid-template-columns: 36px repeat(13, 44px);
+  grid-template-rows: 32px repeat(20, 48px);
+  gap: 1px;
   min-width: fit-content;
 }
 .tzolkin-header-cell {
@@ -386,26 +386,30 @@ body {
 }
 .tzolkin-cell {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: 10px;
-  font-weight: 600;
-  border-radius: 4px;
+  font-weight: 700;
+  border-radius: 3px;
   cursor: pointer;
   transition: transform .1s, box-shadow .2s;
-  min-width: 30px;
-  min-height: 30px;
+  min-width: 44px;
+  min-height: 48px;
   position: relative;
+  gap: 1px;
+  padding: 2px 1px;
 }
-.tzolkin-cell:hover { transform: scale(1.15); z-index: 2; }
+.tzolkin-cell:hover { transform: scale(1.1); z-index: 2; }
 .tzolkin-cell:active { transform: scale(0.95); }
-.tzolkin-cell.color-red    { background: rgba(233,69,96,.35); color: #fff; }
-.tzolkin-cell.color-white  { background: rgba(240,240,240,.25); color: #222; }
-.tzolkin-cell.color-blue   { background: rgba(74,155,217,.35); color: #fff; }
-.tzolkin-cell.color-yellow { background: rgba(245,197,24,.35); color: #222; }
-.tzolkin-cell.gap-cell {
-  border: 2px dashed var(--accent);
-}
+.tz-kin-num { font-size: 11px; }
+.tz-tone-num { font-size: 10px; }
+.tzolkin-cell.color-red    { background: #c0392b; color: #fff; }
+.tzolkin-cell.color-white  { background: #ecf0f1; color: #222; }
+.tzolkin-cell.color-blue   { background: #2980b9; color: #fff; }
+.tzolkin-cell.color-yellow { background: #f1c40f; color: #222; }
+.tzolkin-cell.color-gap    { background: #4caf50; color: #fff; }
+.tzolkin-cell.color-mystic { background: #666; color: #fff; }
 .tzolkin-cell.current-kin {
   box-shadow: 0 0 8px var(--accent);
   outline: 2px solid var(--accent);
@@ -587,4 +591,36 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 3px;
+}
+
+/* Maya numeral dots & bars */
+.maya-num {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1;
+}
+.maya-bar {
+  display: block;
+  width: 16px;
+  height: 3px;
+  background: currentColor;
+  border-radius: 1px;
+}
+.maya-dots {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+}
+.maya-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.tzolkin-header-cell.mystic { color: #aaa; background: rgba(255,255,255,.05); }
+.tzolkin-header-cell {
+  flex-direction: column;
+  gap: 1px;
 }

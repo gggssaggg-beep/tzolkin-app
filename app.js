@@ -317,6 +317,20 @@ function renderWave(kin, tone) {
   return html;
 }
 
+/* ── Maya tone dots ── */
+function mayaDots(tone) {
+  const bars = Math.floor((tone - 1) / 5);
+  const dots = (tone - 1) % 5;
+  let s = '';
+  for (let i = 0; i < bars; i++) s += '<span class="maya-bar"></span>';
+  if (dots > 0) {
+    s += '<span class="maya-dots">';
+    for (let i = 0; i < dots; i++) s += '<span class="maya-dot"></span>';
+    s += '</span>';
+  }
+  return `<span class="maya-num">${s}</span>`;
+}
+
 /* ── Tab: Tzolkin calendar grid ── */
 function renderTzolkin(currentKin) {
   const birthDateStr = localStorage.getItem('birthDate');
@@ -328,42 +342,41 @@ function renderTzolkin(currentKin) {
 
   let html = `<div class="kin-card" style="padding:12px">
     <h3 style="text-align:center;margin-bottom:8px">📅 Цолькин — 260-дневный цикл</h3>
-    <p class="section-intro" style="text-align:center;margin-bottom:8px">20 печатей × 13 тонов. Нажмите ячейку, чтобы перейти к дню.</p>
+    <p class="section-intro" style="text-align:center;margin-bottom:8px">20 Печатей × 13 Тонов. Нажмите ячейку, чтобы перейти к дню.</p>
     <div class="tzolkin-legend">
-      <span><span class="legend-swatch" style="background:rgba(233,69,96,.5)"></span>Красный</span>
-      <span><span class="legend-swatch" style="background:rgba(240,240,240,.4)"></span>Белый</span>
-      <span><span class="legend-swatch" style="background:rgba(74,155,217,.5)"></span>Синий</span>
-      <span><span class="legend-swatch" style="background:rgba(245,197,24,.5)"></span>Жёлтый</span>
-      <span><span class="legend-swatch" style="border:2px dashed var(--accent);width:10px;height:10px"></span>ГАП</span>
+      <span><span class="legend-swatch" style="background:#d94040"></span>Красный</span>
+      <span><span class="legend-swatch" style="background:#e8e8e8"></span>Белый</span>
+      <span><span class="legend-swatch" style="background:#3a8fd9"></span>Синий</span>
+      <span><span class="legend-swatch" style="background:#e8c830"></span>Жёлтый</span>
+      <span><span class="legend-swatch" style="background:#4caf50"></span>ГАП-портал</span>
+      <span><span class="legend-swatch" style="background:#888"></span>Мист. столбец</span>
     </div>
   </div>`;
 
   html += `<div class="tzolkin-grid-wrapper"><div class="tzolkin-grid">`;
-
-  // Corner cell
   html += `<div class="tzolkin-corner"></div>`;
 
-  // Column headers (tones 1-13)
   for (let t = 1; t <= 13; t++) {
-    html += `<div class="tzolkin-header-cell">${t}</div>`;
+    const isMystic = t === 7;
+    html += `<div class="tzolkin-header-cell${isMystic ? ' mystic' : ''}">${mayaDots(t)}<span class="tz-tone-num">${t}</span></div>`;
   }
 
-  // Rows (seals 1-20)
   for (let s = 1; s <= 20; s++) {
-    // Row header: small seal image
-    html += `<div class="tzolkin-row-header">${sealImg(s, 24)}</div>`;
-
+    html += `<div class="tzolkin-row-header">${sealImg(s, 22)}</div>`;
     for (let t = 1; t <= 13; t++) {
       const k = kinFromToneSeal(t, s);
-      const colorClass = 'color-' + sealColor(s);
       const gap = isGap(k);
+      const isMystic = t === 7;
       const isCurrent = k === currentKin;
       const isBirth = k === birthKin;
-      let cls = `tzolkin-cell ${colorClass}`;
-      if (gap) cls += ' gap-cell';
+      let colorCls;
+      if (gap) colorCls = 'color-gap';
+      else if (isMystic) colorCls = 'color-mystic';
+      else colorCls = 'color-' + sealColor(s);
+      let cls = `tzolkin-cell ${colorCls}`;
       if (isCurrent) cls += ' current-kin';
       if (isBirth) cls += ' birth-kin';
-      html += `<div class="${cls}" data-tz-kin="${k}" title="Кин ${k}">${k}</div>`;
+      html += `<div class="${cls}" data-tz-kin="${k}" title="Кин ${k}">${mayaDots(t)}<span class="tz-kin-num">${k}</span></div>`;
     }
   }
 
