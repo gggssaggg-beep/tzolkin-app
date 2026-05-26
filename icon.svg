@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1a1a2e"/>
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#e94560" stroke-width="12"/>
+  <circle cx="256" cy="256" r="120" fill="none" stroke="#4a9bd9" stroke-width="8"/>
+  <circle cx="256" cy="256" r="60" fill="none" stroke="#f5c518" stroke-width="6"/>
+  <circle cx="256" cy="256" r="16" fill="#e94560"/>
+  <text x="256" y="460" text-anchor="middle" font-family="sans-serif" font-size="48" font-weight="bold" fill="#e8e8e8">TZOLKIN</text>
+</svg>

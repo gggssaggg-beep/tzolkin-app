@@ -1,6 +1,6 @@
 const CACHE = 'tzolkin-v1';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'tzolkin.js', 'manifest.json',
-  '../data/seals.json', '../data/tones.json', '../data/kin_descriptions.json'];
+  'data/seals.json', 'data/tones.json', 'data/kin_descriptions.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));

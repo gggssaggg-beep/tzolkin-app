@@ -80,8 +80,79 @@ const CASTLE_NAMES = {
   5:'Зелёный Центральный Замок Очарования',
 };
 
+const MOON_NAMES = [
+  'Магнитная Луна Цели','Лунная Луна Вызова','Электрическая Луна Служения',
+  'Самосущная Луна Формы','Обертонная Луна Сияния','Ритмическая Луна Равенства',
+  'Резонансная Луна Настройки','Галактическая Луна Целостности','Солнечная Луна Намерения',
+  'Планетарная Луна Манифестации','Спектральная Луна Освобождения',
+  'Кристаллическая Луна Сотрудничества','Космическая Луна Присутствия',
+];
+
+const PLASMAS = [
+  {name:'Дали',  chakra:'Коронная чакра',      hint:'Фокусируй намерение. Точка внимания — макушка.'},
+  {name:'Сели',  chakra:'Корневая чакра',       hint:'Позволь энергии течь. Заземление через основание.'},
+  {name:'Гамма', chakra:'Третий глаз',          hint:'Внутренний покой. Точка — межбровье.'},
+  {name:'Кали',  chakra:'Сакральная чакра',     hint:'Закрепляй основу. Центр жизненной силы — низ живота.'},
+  {name:'Альфа', chakra:'Горловая чакра',       hint:'Отпускай и выражай. Центр речи и творчества.'},
+  {name:'Лими',  chakra:'Солнечное сплетение',  hint:'Очищай от лишнего. Центр воли — область живота.'},
+  {name:'Силио', chakra:'Сердечная чакра',      hint:'Разряжай накопленное в сердце. День синтеза недели.'},
+];
+
+const WEEK_COLORS = ['Красная','Белая','Синяя','Жёлтая'];
+
+function getMoon(d) {
+  let dt = new Date(d);
+  if (isLeap(dt.getFullYear()) && dt.getMonth() === 1 && dt.getDate() === 29)
+    dt = new Date(dt.getFullYear(), 1, 28);
+  if (dt.getMonth() === 6 && dt.getDate() === 25)
+    return {isOot: true};
+  let ys;
+  if (dt.getMonth() > 6 || (dt.getMonth() === 6 && dt.getDate() >= 26))
+    ys = new Date(dt.getFullYear(), 6, 26);
+  else
+    ys = new Date(dt.getFullYear() - 1, 6, 26);
+  let dp = daysBetween(ys, dt);
+  const ny = ys.getFullYear() + 1;
+  if (isLeap(ny) && dt >= new Date(ny, 2, 1)) dp--;
+  const mn = Math.floor(dp / 28) + 1;
+  const md = dp % 28 + 1;
+  const pi = (md - 1) % 7;
+  const hep = Math.floor((md - 1) / 7) + 1;
+  return {isOot:false, moonNumber:mn, moonDay:md, moonName:MOON_NAMES[mn-1],
+          plasma:PLASMAS[pi], heptad:hep, heptadColor:WEEK_COLORS[hep-1]};
+}
+
+function yearBearer(d) {
+  let dt = new Date(d);
+  let ys;
+  if (dt.getMonth() > 6 || (dt.getMonth() === 6 && dt.getDate() >= 26))
+    ys = new Date(dt.getFullYear(), 6, 26);
+  else
+    ys = new Date(dt.getFullYear() - 1, 6, 26);
+  const kin = dreamspellKin(ys);
+  return {kin, yearStart: ys};
+}
+
+const PULSAR_DATA = {
+  1: {name:'Время',    hint:'Цели, намерение, видение — что я хочу?'},
+  2: {name:'Разум',    hint:'Планирование и стратегия — как это сделать?'},
+  3: {name:'Чувства',  hint:'Переживание и чувства — что я ощущаю?'},
+  0: {name:'Действие', hint:'Проявление и результат — что я делаю?'},
+};
+
+function pulsar(tone) { return PULSAR_DATA[tone % 4]; }
+
+const CASTLE_HINTS = {
+  1:'Начало и посев — энергия запуска новых процессов',
+  2:'Очищение и переосмысление — отсеивание лишнего',
+  3:'Трансформация — глубокое преобразование изнутри',
+  4:'Созревание — время собирать плоды и делиться',
+  5:'Магия и синхронизация — всё сходится воедино',
+};
+
 export {
   dreamspellKin, kinToToneSeal, kinFromToneSeal, oracle,
   wavespell, castle, harmonic, isDayOutOfTime,
-  SEAL_COLORS, COLOR_RU, CASTLE_NAMES
+  SEAL_COLORS, COLOR_RU, CASTLE_NAMES, CASTLE_HINTS,
+  getMoon, yearBearer, pulsar, MOON_NAMES, PLASMAS,
 };
