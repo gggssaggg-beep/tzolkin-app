@@ -1079,7 +1079,7 @@ function bindCardEvents(kin, tone, seal) {
     strip.addEventListener('pointermove', (e) => {
       if (!cellW) return;
       const dx = e.clientX - startX;
-      const rawDelta = Math.round((-dx / cellW) * unit);
+      const rawDelta = Math.round((dx / cellW) * unit);
       let newKin = ((startKin + rawDelta - 1) % 260 + 260) % 260 + 1;
       if (newKin !== cyclesKin) {
         cyclesKin = newKin;
