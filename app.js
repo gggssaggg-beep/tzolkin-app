@@ -100,12 +100,13 @@ function showInfoPopup(title, bodyHtml) {
 }
 
 /* ── Haptic feedback ── */
+const inTelegram = !!window.Telegram?.WebApp?.initData;
 function haptic(strength = 'light') {
   try {
-    const tg = window.Telegram?.WebApp?.HapticFeedback;
-    if (tg) {
-      if (strength === 'selection') tg.selectionChanged();
-      else tg.impactOccurred(strength); // 'light' | 'medium' | 'heavy'
+    if (inTelegram) {
+      const hf = window.Telegram.WebApp.HapticFeedback;
+      if (strength === 'selection') hf.selectionChanged();
+      else hf.impactOccurred(strength);
     } else {
       const ms = strength === 'medium' ? 18 : strength === 'heavy' ? 35 : strength === 'selection' ? 6 : 10;
       navigator.vibrate?.(ms);
