@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#050010">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta http-equiv="Permissions-Policy" content="vibrate=*">
 <title>Кин дня — Цолькин</title>
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=31">
 </head>
 <body>
 <canvas id="particles"></canvas>
@@ -51,6 +52,11 @@
 </div>
 
 <script>
+const APP_VER = '30';
+if (localStorage.getItem('appVer') !== APP_VER) {
+  localStorage.setItem('appVer', APP_VER);
+  localStorage.removeItem('vibTested'); // re-run vib test on update
+}
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
     regs.forEach(r => r.unregister());
@@ -59,6 +65,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 </script>
-<script type="module" src="app.js?v=30"></script>
+<script type="module" src="app.js?v=31"></script>
 </body>
 </html>

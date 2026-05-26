@@ -100,18 +100,9 @@ function showInfoPopup(title, bodyHtml) {
 }
 
 /* ── Haptic feedback ── */
-let _vibChecked = false;
-
 function haptic(strength = 'light') {
   const ms = { light: 50, medium: 100, heavy: 150, selection: 30 }[strength] ?? 50;
-  try {
-    const result = navigator.vibrate?.(ms);
-    // First call: check if Chrome blocked vibration and guide user
-    if (!_vibChecked) {
-      _vibChecked = true;
-      if (result === false) showVibBlockedHint();
-    }
-  } catch (_) {}
+  try { navigator.vibrate?.(ms); } catch (_) {}
   try {
     const hf = window.Telegram?.WebApp?.HapticFeedback;
     if (hf) {
@@ -121,16 +112,9 @@ function haptic(strength = 'light') {
   } catch (_) {}
 }
 
-function showVibBlockedHint() {
-  showVibToast(
-    'Вибрация заблокирована браузером.\n' +
-    'Chrome → ⋮ → Настройки сайта → Вибрация → Разрешить'
-  );
-}
-
-/* ── Vibration toast / diagnostics ── */
+/* ── Vibration toast ── */
 let _toastTimer = null;
-function showVibToast(msg, duration = 5000) {
+function showVibToast(msg, duration = 6000) {
   let el = document.getElementById('vib-toast');
   if (!el) {
     el = document.createElement('div');
@@ -145,18 +129,47 @@ function showVibToast(msg, duration = 5000) {
   _toastTimer = setTimeout(() => el.classList.remove('show'), duration);
 }
 
+/* ── Auto vibration self-test on first gesture ── */
+function runVibSelfTest() {
+  if (localStorage.getItem('vibTested')) return;
+  localStorage.setItem('vibTested', '1');
+
+  const hasApi = 'vibrate' in navigator;
+  if (!hasApi) return; // desktop или старый браузер — молчим
+
+  let result;
+  try { result = navigator.vibrate([100, 60, 100]); } catch (_) { result = false; }
+
+  try { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium'); } catch (_) {}
+
+  if (result === false) {
+    showVibToast(
+      '⚠ Вибрация заблокирована браузером.\n\n' +
+      'Chrome → ⋮ → Настройки сайта →\nВибрация → Разрешить для этого сайта\n\n' +
+      'Нажмите чтобы скрыть',
+      12000
+    );
+  }
+  // result === true: вибрация должна работать, ничего не показываем
+}
+
+/* ── Long-press ♫ → extended diagnostic ── */
 function testVibration() {
   const tg = window.Telegram?.WebApp;
-  const hasVibApi = 'vibrate' in navigator;
-  let vibResult;
-  try { vibResult = navigator.vibrate?.([150, 80, 150]); } catch (_) {}
+  let result;
+  try { result = navigator.vibrate?.([150, 80, 150]); } catch (_) {}
   try { tg?.HapticFeedback?.impactOccurred('heavy'); } catch (_) {}
-  const tgInfo = tg?.initData ? `TG · ${tg.platform}` : 'PWA';
+  const ctx = tg?.initData ? `Telegram · ${tg.platform}` : 'PWA (автономный)';
   showVibToast(
-    `vibrate API: ${hasVibApi ? 'есть' : 'нет'}\n` +
-    `vibrate() → ${vibResult ?? '—'}\n` +
-    `Контекст: ${tgInfo}`,
-    5000
+    `vibrate API: ${'vibrate' in navigator ? 'есть' : 'нет'}\n` +
+    `vibrate() → ${result ?? '—'}\n` +
+    `Контекст: ${ctx}\n\n` +
+    (result === false
+      ? 'Chrome → ⋮ → Настройки сайта → Вибрация → Разрешить'
+      : result === true
+        ? 'API ОК. Если не чувствуете — проверьте режим тишины'
+        : 'API недоступен'),
+    8000
   );
 }
 
@@ -1195,6 +1208,9 @@ function bindCardEvents(kin, tone, seal) {
 
 /* ── Setup permanent events ── */
 function setupEvents() {
+  // Run vibration self-test once on first user gesture
+  document.addEventListener('pointerdown', runVibSelfTest, { once: true });
+
   document.getElementById('today-btn').addEventListener('click', () => {
     currentDate = new Date();
     cyclesKin = null;
