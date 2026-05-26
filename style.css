@@ -330,10 +330,6 @@ body {
   font-weight: 600;
 }
 
-/* Hidden sections */
-.section { display: none; }
-.section.active { display: block; }
-
 /* Wave list */
 .wave-kin-row {
   display: flex;
@@ -417,14 +413,6 @@ body {
   outline: 2px solid var(--blue);
   z-index: 1;
 }
-.tzolkin-corner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  color: var(--muted);
-}
-
 /* Moon tab clickable items */
 .moon-clickable {
   cursor: pointer;
@@ -432,18 +420,6 @@ body {
   border-radius: 8px;
 }
 .moon-clickable:hover { background: rgba(255,255,255,.06); }
-.moon-plasma-expand {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height .3s ease;
-  opacity: 0;
-}
-.moon-plasma-expand.open {
-  max-height: 500px;
-  opacity: 1;
-  transition: max-height .4s ease, opacity .3s ease;
-}
-
 /* Modal overlay for personal kin and popups */
 .modal-overlay {
   position: fixed;
@@ -529,26 +505,6 @@ body {
 .connection-item:last-child { border: none; }
 .connection-icon { font-size: 16px; flex-shrink: 0; width: 24px; text-align: center; }
 .connection-text { flex: 1; }
-
-/* Castle popup */
-.castle-popup {
-  background: rgba(0,0,0,.5);
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.castle-popup-inner {
-  background: var(--card-bg);
-  border-radius: var(--radius);
-  padding: 24px 20px;
-  max-width: 400px;
-  width: 100%;
-  animation: fadeIn .3s ease;
-}
 
 /* Swipe hint animation */
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

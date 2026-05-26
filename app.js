@@ -346,15 +346,7 @@ function mayaDots(tone) {
   return `<span class="maya-num">${s}</span>`;
 }
 
-/* ── GAP portals — canonical 52 positions from Harmonic Index ── */
-const GAP_GRID = new Set([
-  1,20,22,39,43,50,51,58,64,69,72,77,85,88,93,96,
-  106,107,108,109,110,111,112,113,114,115,
-  146,147,148,149,150,151,152,153,154,155,
-  165,168,173,176,184,189,192,197,203,210,211,218,222,239,241,260
-]);
-
-function isGapGrid(kin) { return GAP_GRID.has(kin); }
+/* GAP portals now read from kinsData.is_gap (canonical 52 in kin_descriptions.json) */
 
 /* ── Tab: Tzolkin calendar grid ── */
 function renderTzolkin(currentKin) {
@@ -384,7 +376,7 @@ function renderTzolkin(currentKin) {
     for (let col = 0; col < 13; col++) {
       const k = seal + col * 20;
       const tone = (k - 1) % 13 + 1;
-      const gap = isGapGrid(k);
+      const gap = isGap(k);
       const isMystic = col === 6;
       const isCurrent = k === currentKin;
       const isBirth = k === birthKin;
@@ -550,25 +542,6 @@ function bindMyKinEvents() {
 }
 
 /* ── Castle popup ── */
-function showCastlePopup(kin) {
-  const cast = castle(kin);
-  const div = document.createElement('div');
-  div.className = 'castle-popup';
-  div.innerHTML = `<div class="castle-popup-inner">
-    <h3>🏰 Замок ${cast}</h3>
-    <p style="font-size:16px;font-weight:600;margin-bottom:8px">${CASTLE_NAMES[cast]}</p>
-    <p style="font-size:14px;line-height:1.5">${CASTLE_HINTS[cast]}</p>
-    <p class="section-intro" style="margin-top:8px">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
-    <button class="modal-close" style="margin-top:16px">✕ Закрыть</button>
-  </div>`;
-  document.body.appendChild(div);
-  div.addEventListener('click', (e) => {
-    if (e.target === div || e.target.classList.contains('modal-close')) {
-      div.remove();
-    }
-  });
-}
-
 /* ── Render dispatcher ── */
 function render() {
   const kin = dreamspellKin(currentDate);
