@@ -100,9 +100,12 @@ function showInfoPopup(title, bodyHtml) {
 }
 
 /* ── Haptic feedback ── */
+// Use _vibrate captured before telegram-web-app.js could override navigator.vibrate
+const _vib = window._vibrate ?? navigator.vibrate?.bind(navigator) ?? null;
+
 function haptic(strength = 'light') {
   const ms = { light: 50, medium: 100, heavy: 150, selection: 30 }[strength] ?? 50;
-  try { navigator.vibrate?.(ms); } catch (_) {}
+  try { _vib?.(ms); } catch (_) {}
   try {
     const hf = window.Telegram?.WebApp?.HapticFeedback;
     if (hf) {
@@ -138,7 +141,7 @@ function runVibSelfTest() {
   if (!hasApi) return; // desktop или старый браузер — молчим
 
   let result;
-  try { result = navigator.vibrate([100, 60, 100]); } catch (_) { result = false; }
+  try { result = _vib?.([100, 60, 100]); } catch (_) { result = false; }
 
   try { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium'); } catch (_) {}
 
@@ -157,11 +160,11 @@ function runVibSelfTest() {
 function testVibration() {
   const tg = window.Telegram?.WebApp;
   let result;
-  try { result = navigator.vibrate?.([150, 80, 150]); } catch (_) {}
+  try { result = _vib?.([150, 80, 150]); } catch (_) {}
   try { tg?.HapticFeedback?.impactOccurred('heavy'); } catch (_) {}
   const ctx = tg?.initData ? `Telegram · ${tg.platform}` : 'PWA (автономный)';
   showVibToast(
-    `vibrate API: ${'vibrate' in navigator ? 'есть' : 'нет'}\n` +
+    `_vibrate захвачен: ${window._vibrate ? 'да' : 'нет'}\n` +
     `vibrate() → ${result ?? '—'}\n` +
     `Контекст: ${ctx}\n\n` +
     (result === false
