@@ -91,9 +91,9 @@ html, body {
    ───────────────────────────────────────────────────────────── */
 #nav {
   display: grid;
-  grid-template-columns: 44px 1fr 44px 44px;
+  grid-template-columns: 44px 44px 1fr 44px 44px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 18px 0 14px;
   position: sticky;
   top: 0;
@@ -114,6 +114,13 @@ html, body {
   display: grid; place-items: center;
 }
 .nav-btn:active { background: rgba(255,255,255,.1); transform: scale(.92); }
+.today-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
 .date-tap {
   text-align: center;
@@ -246,7 +253,13 @@ html, body {
   padding: 20px 18px;
   margin-bottom: 12px;
 }
-.kin-header { text-align: center; margin-bottom: 16px; }
+.kin-header {
+  text-align: center;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
 .seal-badge {
   display: inline-flex;
@@ -549,7 +562,9 @@ html, body {
   line-height: 1.6;
   color: var(--ink-dim);
 }
-.section-intro {
+.section-intro,
+.detail-section .section-intro,
+.expand-panel .section-intro {
   font-size: 12px;
   color: var(--ink-faint);
   font-style: italic;
@@ -771,6 +786,7 @@ html, body {
   touch-action: pan-y;
   cursor: grab;
   user-select: none;
+  position: relative;
 }
 .cycle-strip-grid:active { cursor: grabbing; }
 .cycle-cell {
@@ -788,12 +804,21 @@ html, body {
   opacity: 0.6;
 }
 .cycle-cell.active {
-  border-color: currentColor;
-  background: color-mix(in oklab, currentColor 18%, transparent);
-  box-shadow: 0 0 calc(14px * var(--glow)) currentColor;
   color: currentColor;
-  transform: scale(1.08);
   opacity: 1;
+}
+
+/* smooth sliding marker — one element that transitions between cells */
+.cycle-marker {
+  position: absolute;
+  pointer-events: none;
+  border: 1.5px solid currentColor;
+  background: color-mix(in oklab, currentColor 18%, transparent);
+  box-shadow: 0 0 calc(14px * var(--glow)) color-mix(in oklab, currentColor 50%, transparent);
+  border-radius: 8px;
+  z-index: 2;
+  transition: left .35s cubic-bezier(.2,.7,.3,1), top .35s cubic-bezier(.2,.7,.3,1),
+              width .35s cubic-bezier(.2,.7,.3,1), height .35s cubic-bezier(.2,.7,.3,1);
 }
 .cycle-cell .cell-num { font-size: 16px; font-weight: 600; }
 .cycle-cell .cell-label {
@@ -864,12 +889,14 @@ html, body {
   background: var(--bg-card);
   border: 1px solid var(--hairline);
   padding: 4px;
+  overflow-x: auto;
 }
 .tzolkin-grid {
   display: grid;
-  grid-template-columns: 24px repeat(13, 1fr);
+  grid-template-columns: 20px repeat(13, minmax(30px, 1fr));
   grid-template-rows: repeat(20, auto);
-  gap: 1px;
+  gap: 2px;
+  min-width: 430px;
 }
 .tzolkin-header-cell {
   display: flex;
@@ -894,15 +921,15 @@ html, body {
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 700;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
   transition: transform .1s, box-shadow .2s;
-  min-height: 24px;
-  aspect-ratio: 1 / 1.1;
+  min-height: 36px;
+  aspect-ratio: 1 / 1.2;
   position: relative;
-  gap: 0;
+  gap: 1px;
   padding: 0;
 }
 .tzolkin-cell:hover { transform: scale(1.15); z-index: 2; }
@@ -928,7 +955,7 @@ html, body {
   z-index: 1;
 }
 
-.tz-kin-num { font-size: 8px; font-weight: 800; }
+.tz-kin-num { font-size: 9px; font-weight: 800; }
 
 /* Tzolkin legend */
 .tzolkin-legend {
@@ -1127,6 +1154,58 @@ html, body {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Tone badge above kin number
+   ───────────────────────────────────────────────────────────── */
+.tone-above {
+  margin-bottom: 4px;
+  opacity: 0.85;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Kin popup overlay
+   ───────────────────────────────────────────────────────────── */
+.popup-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(5, 0, 16, 0.75);
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(4px);
+}
+.popup-card {
+  background: var(--bg-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 20px 18px;
+  max-width: 340px;
+  width: 100%;
+  max-height: 75vh;
+  overflow-y: auto;
+  animation: fadeIn .2s ease;
+  backdrop-filter: blur(12px);
+}
+.popup-close-btn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.popup-close-btn:active { background: rgba(255,255,255,0.08); }
+
+/* ─────────────────────────────────────────────────────────────
    Animations
    ───────────────────────────────────────────────────────────── */
 @keyframes fadeIn {
@@ -1143,6 +1222,32 @@ html, body {
   50%, 100% { opacity: 0; }
 }
 .blink { animation: blink 1s steps(2) infinite; }
+
+/* ─────────────────────────────────────────────────────────────
+   Music toggle button
+   ───────────────────────────────────────────────────────────── */
+.music-btn {
+  position: fixed;
+  bottom: 72px;
+  right: 14px;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: rgba(5, 0, 16, 0.75);
+  color: var(--ink-faint);
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 25;
+  display: grid; place-items: center;
+  backdrop-filter: blur(8px);
+  transition: all .25s;
+}
+.music-btn:active { transform: scale(.92); }
+.music-btn.playing {
+  color: var(--n-cyan);
+  border-color: color-mix(in oklab, var(--n-cyan) 50%, transparent);
+  box-shadow: 0 0 calc(14px * var(--glow)) color-mix(in oklab, var(--n-cyan) 40%, transparent);
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }

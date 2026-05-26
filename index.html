@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=20">
 </head>
 <body>
 <canvas id="particles"></canvas>
@@ -19,9 +19,8 @@
 <div class="vignette"></div>
 
 <div id="app">
-  <!-- TODO: удалить после отладки -->
-  <div id="debug-version" style="position:fixed;top:0;left:0;right:0;z-index:999;background:#e94560;color:#fff;text-align:center;font-size:11px;padding:2px;font-family:monospace">v18 neon cosmic — actions deploy</div>
-  <header id="nav" style="margin-top:20px">
+  <header id="nav">
+    <button id="today-btn" class="nav-btn today-btn" aria-label="Сегодня" title="Сегодня">СЕГ</button>
     <button id="prev" class="nav-btn" aria-label="Previous day">&larr;</button>
     <div id="date-display" class="date-tap"></div>
     <button id="my-kin-btn" class="nav-btn" aria-label="Мой кин" title="Мой кин">☉</button>
@@ -44,6 +43,13 @@
   </nav>
 </div>
 
+<button id="music-btn" class="music-btn" title="Фоновая музыка">♫</button>
+
+<!-- Kin popup (outside #app to avoid stacking context issues) -->
+<div id="kin-popup" class="popup-overlay" style="display:none">
+  <div class="popup-card" id="kin-popup-content"></div>
+</div>
+
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -53,6 +59,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 </script>
-<script type="module" src="app.js?v=18"></script>
+<script type="module" src="app.js?v=20"></script>
 </body>
 </html>

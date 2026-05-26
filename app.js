@@ -8,9 +8,6 @@ let sealsData, tonesData, kinsData;
 let currentDate = new Date();
 let currentTab = 'main';
 
-/* ── Expanded panel tracking ── */
-let expandedPanel = null; // 'seal' | 'tone' | 'castle' | null
-
 /* ── Cycles tab state ── */
 let cyclesKin = null; // lazy init on first render
 
@@ -40,6 +37,111 @@ function sealImg(sealId, size = 48, glow = false) {
 }
 function toneImg(toneId, size = 32) {
   return `<img src="img/tone_${String(toneId).padStart(2, '0')}.png" width="${size}" height="${size}" class="tone-img" alt="">`;
+}
+
+/* ── Kin popup ── */
+function showKinPopup(kin, roleInfo) {
+  const { tone, seal } = kinToToneSeal(kin);
+  const info = kinsData[String(kin)];
+  const si = sealsData[seal];
+  const ti = tonesData[tone];
+  const color = sealColor(seal);
+  const gap = isGap(kin);
+
+  let html = `<div style="text-align:center;margin-bottom:12px">
+    <div class="seal-badge ${color} c-${color}" style="width:64px;height:64px;margin:0 auto 6px">
+      ${sealImg(seal, 52, true)}
+    </div>
+    <div style="margin-bottom:4px">${toneImg(tone, 28)}</div>
+    <div class="kin-num c-${color}" style="font-size:24px">${kin}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
+    <div class="display" style="font-size:11px;margin-top:4px">${info?.title || ''}</div>`;
+  if (roleInfo) {
+    html += `<div class="eyebrow" style="margin-top:6px;color:var(--n-cyan)">${roleInfo.name}</div>
+      <div style="font-size:11px;color:var(--ink-faint);margin-top:2px;font-style:italic">${roleInfo.desc}</div>`;
+  }
+  html += `</div>
+    <div class="hr"></div>
+    <div style="font-size:12px;line-height:1.7;color:var(--ink-dim)">
+      <p>${sealImg(seal, 16)} <b>${si.name_ru}</b> (${si.name_maya})</p>
+      <p>Сущность: ${si.essence_ru}</p>
+      <p>Сила: ${si.power_ru} · Действие: ${si.action_ru}</p>
+      <p style="margin-top:6px">${toneImg(tone, 14)} <b>Тон ${tone} — ${ti.name_ru}</b></p>
+      <p>Функция: ${ti.action_ru}</p>
+    </div>`;
+  if (info?.summary)
+    html += `<div class="hr"></div><p style="font-size:12px;color:var(--ink-faint);line-height:1.5">${info.summary}</p>`;
+  html += `<button class="popup-close-btn">✕ ЗАКРЫТЬ</button>`;
+
+  const popup = document.getElementById('kin-popup-content');
+  popup.innerHTML = html;
+  document.getElementById('kin-popup').style.display = 'flex';
+  popup.querySelector('.popup-close-btn').addEventListener('click', closeKinPopup);
+}
+
+function closeKinPopup() {
+  document.getElementById('kin-popup').style.display = 'none';
+}
+
+/* ── Generic info popup (wave/castle/moon) ── */
+function showInfoPopup(title, bodyHtml) {
+  const popup = document.getElementById('kin-popup-content');
+  popup.innerHTML = `
+    <h3 class="card-title" style="margin-bottom:12px">
+      <span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>
+      ${title}
+    </h3>
+    ${bodyHtml}
+    <button class="popup-close-btn">✕ ЗАКРЫТЬ</button>`;
+  document.getElementById('kin-popup').style.display = 'flex';
+  popup.querySelector('.popup-close-btn').addEventListener('click', closeKinPopup);
+}
+
+/* ── Ambient music ── */
+let audioCtx = null;
+let musicPlaying = false;
+let musicGain = null;
+
+function startAmbient() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = audioCtx.createGain();
+  master.gain.value = 0;
+  const comp = audioCtx.createDynamicsCompressor();
+  master.connect(comp);
+  comp.connect(audioCtx.destination);
+  musicGain = master;
+  // Solfeggio 174 Hz drone + harmonics
+  [[174, 0.45], [261, 0.11], [348, 0.07], [87, 0.18]].forEach(([f, v]) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = f;
+    const g = audioCtx.createGain();
+    g.gain.value = v;
+    osc.connect(g);
+    g.connect(master);
+    osc.start();
+  });
+}
+
+function toggleMusic() {
+  const btn = document.getElementById('music-btn');
+  if (!audioCtx) startAmbient();
+  if (!musicPlaying) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, audioCtx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 2.5);
+    musicPlaying = true;
+    btn.classList.add('playing');
+    btn.textContent = '♪';
+  } else {
+    musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, audioCtx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5);
+    musicPlaying = false;
+    btn.classList.remove('playing');
+    btn.textContent = '♫';
+  }
 }
 
 /* ── Data loading ── */
@@ -96,7 +198,6 @@ function renderNav() {
 
 function navigateToDate(d) {
   currentDate = d;
-  expandedPanel = null;
   render();
 }
 
@@ -108,7 +209,6 @@ function switchTab(tab) {
   const btn = document.querySelector(`.tab[data-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
   currentTab = tab;
-  expandedPanel = null;
   render();
 }
 
@@ -157,6 +257,7 @@ function renderMain(kin, tone, seal) {
   html += `<div class="kin-card">
     <div class="kin-header">
       <div class="seal-badge ${color} c-${color}">${sealImg(seal, 80, true)}</div>
+      <div class="tone-above">${toneImg(tone, 36)}</div>
       <div class="kin-number c-${color}">${kin}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
       <div class="kin-title">${info.title}</div>
       <div class="kin-subtitle">${sealInfo.name_maya} · ${toneImg(tone, 18)} ТОН ${tone} — ${toneInfo.name_ru}</div>
@@ -166,66 +267,27 @@ function renderMain(kin, tone, seal) {
   html += renderWaveBar(tone, 'c-' + color);
 
   html += `<div class="info-grid">
-      <div class="info-item" data-action="expand-seal">
-        <div class="info-label">ПЕЧАТЬ ${expandedPanel === 'seal' ? '▴' : '▾'}</div>
+      <div class="info-item" style="cursor:default">
+        <div class="info-label">ПЕЧАТЬ</div>
         <div class="info-value">${sealImg(seal, 22)} ${sealInfo.name_ru}</div>
         <div class="info-sub">${sealInfo.essence_ru}</div>
       </div>
-      <div class="info-item" data-action="expand-tone">
-        <div class="info-label">ТОН ${expandedPanel === 'tone' ? '▴' : '▾'}</div>
+      <div class="info-item" style="cursor:default">
+        <div class="info-label">ТОН</div>
         <div class="info-value">${toneImg(tone, 18)} ${tone} — ${toneInfo.name_ru}</div>
         <div class="info-sub">${toneInfo.action_ru}</div>
       </div>
-      <div class="info-item" data-action="expand-wave">
-        <div class="info-label">ВОЛНА ${expandedPanel === 'wave' ? '▴' : '▾'}</div>
+      <div class="info-item" data-action="wave-popup">
+        <div class="info-label">ВОЛНА ▸</div>
         <div class="info-value">${sealImg(waveSeal, 22)} ${wave} — ${sealsData[waveSeal].name_ru}</div>
         <div class="info-sub">Позиция ${(kin - 1) % 13 + 1} из 13</div>
       </div>
-      <div class="info-item" data-action="expand-castle">
-        <div class="info-label">ЗАМОК ${expandedPanel === 'castle' ? '▴' : '▾'}</div>
+      <div class="info-item" data-action="castle-popup">
+        <div class="info-label">ЗАМОК ▸</div>
         <div class="info-value">${CASTLE_NAMES[cast]?.split(' ')[0] || cast}</div>
         <div class="info-sub">${CASTLE_HINTS[cast]?.split('—')[0]?.trim() || ''}</div>
       </div>
     </div>
-  </div>`;
-
-  // Expandable panels
-  html += `<div class="expand-panel${expandedPanel === 'seal' ? ' open' : ''}" id="panel-seal">
-    <h3>${sealImg(seal, 22)} ПЕЧАТЬ: ${sealInfo.name_ru} (${sealInfo.name_maya})</h3>
-    <p><b>Сущность:</b> ${sealInfo.essence_ru}<br>
-    <b>Сила:</b> ${sealInfo.power_ru} · <b>Действие:</b> ${sealInfo.action_ru}<br>
-    <b>Направление:</b> ${sealInfo.direction_action_ru}<br>
-    <b>Семья Земли:</b> ${sealInfo.earth_family_action_ru}<br>
-    <b>Чакра:</b> ${sealInfo.chakra_ru}</p>
-    ${sealInfo.description_ru ? `<p class="section-intro" style="margin-top:8px">${sealInfo.description_ru}</p>` : ''}
-    <button class="expand-close" data-close="seal">✕ СВЕРНУТЬ</button>
-  </div>`;
-
-  html += `<div class="expand-panel${expandedPanel === 'tone' ? ' open' : ''}" id="panel-tone">
-    <h3>${toneImg(tone, 22)} ТОН ${tone} — ${toneInfo.name_ru}</h3>
-    <p><b>Функция:</b> ${toneInfo.function_ru || ''}<br>
-    <b>Действие:</b> ${toneInfo.action_ru}<br>
-    <b>Творческая сила:</b> ${toneInfo.creative_power_ru}</p>
-    ${toneInfo.description_ru ? `<p class="section-intro" style="margin-top:8px">${toneInfo.description_ru}</p>` : ''}
-    <button class="expand-close" data-close="tone">✕ СВЕРНУТЬ</button>
-  </div>`;
-
-  const wsi = sealsData[waveSeal];
-  const p = pulsar(tone);
-  html += `<div class="expand-panel${expandedPanel === 'wave' ? ' open' : ''}" id="panel-wave">
-    <h3>🌀 ВОЛНА ${wave} — ${wsi.name_ru}</h3>
-    <p class="section-intro">Волна — 13-дневный цикл с единой темой. Всего 20 волн в цикле Цолькин.</p>
-    <p><b>Сила:</b> ${wsi.power_ru} · <b>Действие:</b> ${wsi.action_ru}<br>
-    <b>Позиция:</b> день ${(kin - 1) % 13 + 1} из 13<br>
-    <b>Пульсар:</b> ${p.name} — ${p.hint}</p>
-    <button class="expand-close" data-close="wave">✕ СВЕРНУТЬ</button>
-  </div>`;
-
-  html += `<div class="expand-panel${expandedPanel === 'castle' ? ' open' : ''}" id="panel-castle">
-    <h3>🏰 ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}</h3>
-    <p class="section-intro">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
-    <p>${CASTLE_HINTS[cast]}</p>
-    <button class="expand-close" data-close="castle">✕ СВЕРНУТЬ</button>
   </div>`;
 
   // Affirmation with bracket frame
@@ -296,7 +358,7 @@ function renderOracle(kin) {
         <div class="oracle-name">КИН ${k} — ${title}</div>
         <div class="oracle-hint">${r.desc}</div>
         <div class="oracle-seal-desc">${sealDesc}</div>
-        <div class="oracle-nav-hint">нажмите для перехода →</div>
+        <div class="oracle-nav-hint">нажмите для подробностей</div>
       </div></div>`;
   }
   html += `</div></div>`;
@@ -317,21 +379,19 @@ function renderMoon() {
     <p class="section-intro">Год из 13 лун по 28 дней. Каждая луна = 4 недели. Начало года — 26 июля.</p>
     <p class="section-intro">${m.moonName}</p>
     <div class="info-grid" style="margin-top:12px">
-      <div class="info-item" style="cursor:default"><div class="info-label">ЛУНА</div>
+      <div class="info-item moon-clickable" data-action="moon-popup" data-moon-type="luna">
+        <div class="info-label">ЛУНА ▸</div>
         <div class="info-value">${m.moonNumber} ИЗ 13</div></div>
-      <div class="info-item" style="cursor:default"><div class="info-label">ДЕНЬ</div>
+      <div class="info-item moon-clickable" data-action="moon-popup" data-moon-type="day">
+        <div class="info-label">ДЕНЬ ▸</div>
         <div class="info-value">${m.moonDay} ИЗ 28</div></div>
-      <div class="info-item" style="cursor:default"><div class="info-label">НЕДЕЛЯ</div>
+      <div class="info-item moon-clickable" data-action="moon-popup" data-moon-type="week">
+        <div class="info-label">НЕДЕЛЯ ▸</div>
         <div class="info-value">${m.heptad} — ${m.heptadColor}</div></div>
-      <div class="info-item moon-clickable" data-action="plasma-expand"><div class="info-label">ПЛАЗМА</div>
+      <div class="info-item moon-clickable" data-action="moon-popup" data-moon-type="plasma">
+        <div class="info-label">ПЛАЗМА ▸</div>
         <div class="info-value">${m.plasma.name}</div></div>
     </div>
-  </div>
-  <div class="detail-section" id="plasma-section">
-    <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПЛАЗМА: ${m.plasma.name}</h3>
-    <p class="section-intro">Плазма — ежедневная энергетическая практика. 7 плазм повторяются каждую неделю.</p>
-    <p>${m.plasma.hint}</p>
-    <p class="section-intro" style="margin-top:4px">Чакра: ${m.plasma.chakra}</p>
   </div>
   <div class="detail-section moon-clickable" data-action="year-bearer-nav">
     <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ГОД: ${sealImg(ybTS.seal, 20)} ${ybTitle}</h3>
@@ -362,12 +422,17 @@ function renderWave(kin, tone) {
   <div class="detail-section">
     <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}</h3>
     <p class="section-intro">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
-    <p>${CASTLE_HINTS[cast]}</p>
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+      <p>▸ ${CASTLE_HINTS[cast].replace(' — ', '</p><p>▸ ')}</p>
+      <p style="margin-top:8px;color:var(--ink)">ЗАМОК <b>${cast}</b> ИЗ 5 · ВОЛНЫ ${(cast - 1) * 4 + 1}–${cast * 4}</p>
+    </div>
   </div>
   <div class="detail-section">
     <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПУЛЬСАР: ${p.name}</h3>
     <p class="section-intro">Пульсар — ритм внутри волны: какое измерение активно сегодня.</p>
-    <p>${p.hint}</p>
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+      <p>▸ ${p.hint}</p>
+    </div>
   </div>`;
 
   // 13 kins of wave
@@ -441,6 +506,36 @@ function updateCyclesActive() {
       КАЖДЫЙ ТОН ВНУТРИ ВОЛНЫ, ВОЛНА ВНУТРИ ЗАМКА.
     </div>`;
   }
+
+  // Move smooth markers over the active cells
+  document.querySelectorAll('.cycle-strip-grid[data-cycle]').forEach(grid => {
+    const marker = grid.querySelector('.cycle-marker');
+    const activeCell = grid.querySelector('.cycle-cell.active');
+    if (!marker || !activeCell) return;
+    const gr = grid.getBoundingClientRect();
+    const cr = activeCell.getBoundingClientRect();
+    marker.style.top = (cr.top - gr.top) + 'px';
+    marker.style.left = (cr.left - gr.left) + 'px';
+    marker.style.width = cr.width + 'px';
+    marker.style.height = cr.height + 'px';
+  });
+}
+
+function positionCycleMarkers() {
+  document.querySelectorAll('.cycle-strip-grid[data-cycle]').forEach(grid => {
+    const marker = grid.querySelector('.cycle-marker');
+    const activeCell = grid.querySelector('.cycle-cell.active');
+    if (!marker || !activeCell) return;
+    const gr = grid.getBoundingClientRect();
+    const cr = activeCell.getBoundingClientRect();
+    // disable transition for initial placement
+    marker.style.transition = 'none';
+    marker.style.top = (cr.top - gr.top) + 'px';
+    marker.style.left = (cr.left - gr.left) + 'px';
+    marker.style.width = cr.width + 'px';
+    marker.style.height = cr.height + 'px';
+    requestAnimationFrame(() => { marker.style.transition = ''; });
+  });
 }
 
 function renderCycles(kin) {
@@ -479,7 +574,7 @@ function renderCycles(kin) {
       <div class="cell-label">${CASTLE_SUB[i]}</div>
     </div>`;
   }
-  html += `</div></div>`;
+  html += `<div class="cycle-marker"></div></div></div>`;
 
   // Wave strip (4 cells within castle)
   const waveColors = ['red','cyan','blue','amber'];
@@ -497,7 +592,7 @@ function renderCycles(kin) {
       <div class="cell-label">${startKin}–${startKin + 12}</div>
     </div>`;
   }
-  html += `</div></div>`;
+  html += `<div class="cycle-marker"></div></div></div>`;
 
   // Tone strip (13 cells)
   html += `<div class="cycle-strip c-${waveColors[waveInCastle]}" style="margin-left:28px">
@@ -512,7 +607,7 @@ function renderCycles(kin) {
       <div class="cell-num" style="font-size:12px">${i + 1}</div>
     </div>`;
   }
-  html += `</div></div>`;
+  html += `<div class="cycle-marker"></div></div></div>`;
 
   // Info card
   html += `<div class="cycle-info-card">
@@ -691,6 +786,7 @@ function renderMyKinContent() {
       <div class="seal-badge ${bColor} c-${bColor}" style="width:80px;height:80px;margin:0 auto 8px">
         ${sealImg(bSeal, 68, true)}
       </div>
+      <div style="margin-bottom:4px">${toneImg(bTone, 32)}</div>
       <div class="kin-num c-${bColor}" style="font-size:36px">${bKin}${bGap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
       <div class="display" style="font-size:14px;margin-top:6px">${bInfo?.title || ''}</div>
       <div class="eyebrow muted" style="margin-top:4px">${formatDateRu(birthD).toUpperCase()}</div>
@@ -712,6 +808,23 @@ function renderMyKinContent() {
         <div class="eyebrow">ЗАМОК</div>
         <div class="display" style="font-size:11px;margin-top:4px">${CASTLE_NAMES[bCastle]?.split(' ')[0] || bCastle}</div>
       </div>
+    </div>
+    <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> КРЕСТ СУДЬБЫ</h3>
+    <p class="section-intro" style="margin-bottom:8px">Четыре энергии вашего Кина. Нажмите на элемент для подробностей.</p>
+    <div class="oracle-cross" style="margin:0 0 14px;gap:6px">
+      ${(() => {
+        function mcell(k, role, area) {
+          const { seal: s } = kinToToneSeal(k);
+          const c = sealColor(s);
+          const isBig = area === 'main';
+          return '<div class="oracle-cell c-' + c + (isBig ? ' main' : '') + '" style="grid-area:' + area + ';padding:8px 2px" data-popup-kin="' + k + '" data-popup-area="' + area + '"><div class="role">' + role + '</div><div class="seal-icon">' + sealImg(s, isBig ? 36 : 24, true) + '</div><div class="kin-num-cell" style="font-size:' + (isBig ? 15 : 12) + 'px">' + k + '</div></div>';
+        }
+        return mcell(bOracle.guide, 'УПРАВИТЕЛЬ', 'guide')
+          + mcell(bOracle.antipode, 'АНТИПОД', 'anti')
+          + mcell(bKin, 'МОЙ КИН', 'main')
+          + mcell(bOracle.analog, 'АНАЛОГ', 'analog')
+          + mcell(bOracle.hidden, 'ОККУЛЬТНЫЙ', 'hidden');
+      })()}
     </div>
     <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span> СВЯЗЬ С ТЕКУЩИМ ДНЁМ</h3>
     <div class="connection-list">
@@ -762,6 +875,16 @@ function bindMyKinEvents() {
       setTimeout(() => bindMyKinEvents(), 0);
     });
   }
+  // Destiny cross popup handlers
+  const roleMap = { guide: 0, anti: 1, analog: 2, hidden: 3 };
+  document.querySelectorAll('#my-kin-content [data-popup-kin]').forEach(el => {
+    el.addEventListener('click', () => {
+      const area = el.dataset.popupArea;
+      if (area === 'main') return;
+      const targetKin = +el.dataset.popupKin;
+      showKinPopup(targetKin, ORACLE_ROLES[roleMap[area]]);
+    });
+  });
 }
 
 /* ── Render dispatcher ── */
@@ -781,6 +904,7 @@ function render() {
     case 'cycles':
       if (cyclesKin === null) cyclesKin = kin;
       card.innerHTML = renderCycles(cyclesKin);
+      requestAnimationFrame(positionCycleMarkers);
       break;
     case 'tzolkin': card.innerHTML = renderTzolkin(kin); break;
     case 'personal': showMyKinModal(); card.innerHTML = ''; break;
@@ -794,76 +918,100 @@ function render() {
 function bindCardEvents(kin, tone, seal) {
   const card = document.getElementById('card');
 
-  // Main tab: info grid clicks
-  card.querySelectorAll('[data-action="expand-seal"]').forEach(el => {
+  // Main tab: ВОЛНА popup
+  card.querySelectorAll('[data-action="wave-popup"]').forEach(el => {
     el.addEventListener('click', () => {
-      expandedPanel = expandedPanel === 'seal' ? null : 'seal';
-      render();
-      if (expandedPanel === 'seal') {
-        setTimeout(() => document.getElementById('panel-seal')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+      const curKin = dreamspellKin(currentDate);
+      const { tone: curTone } = kinToToneSeal(curKin);
+      const wave = wavespell(curKin);
+      const waveFirst = (wave - 1) * 13 + 1;
+      const { seal: waveSeal } = kinToToneSeal(waveFirst);
+      const wsi = sealsData[waveSeal];
+      const pos = (curKin - 1) % 13 + 1;
+      const p = pulsar(curTone);
+      showInfoPopup(`ВОЛНА ${wave} — ${wsi.name_ru}`,
+        `<div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:2;color:var(--ink-dim)">
+          <p class="section-intro" style="text-transform:none">Волна — 13-дневный цикл с единой темой. Всего 20 волн в цикле Цолькин.</p>
+          <p style="margin-top:8px">▸ СИЛА: ${wsi.power_ru}</p>
+          <p>▸ ДЕЙСТВИЕ: ${wsi.action_ru}</p>
+          <p>▸ ПОЗИЦИЯ: ДЕНЬ ${pos} ИЗ 13</p>
+          <p>▸ ПУЛЬСАР: ${p.name} — ${p.hint}</p>
+        </div>`);
+    });
+  });
+
+  // Main tab: ЗАМОК popup
+  card.querySelectorAll('[data-action="castle-popup"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const curKin = dreamspellKin(currentDate);
+      const cast = castle(curKin);
+      showInfoPopup(`ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}`,
+        `<div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:2;color:var(--ink-dim)">
+          <p class="section-intro" style="text-transform:none">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
+          <p style="margin-top:8px">▸ ${CASTLE_HINTS[cast].replace(' — ', '</p><p>▸ ')}</p>
+          <p>▸ ЗАМОК ${cast} ИЗ 5 · ВОЛНЫ ${(cast - 1) * 4 + 1}–${cast * 4}</p>
+        </div>`);
+    });
+  });
+
+  // Moon tab: popups for lunar data
+  card.querySelectorAll('[data-action="moon-popup"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const m = getMoon(currentDate);
+      const type = el.dataset.moonType;
+      let title, body;
+      if (type === 'luna') {
+        title = `ЛУНА ${m.moonNumber} — ${m.moonName}`;
+        body = `<div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.06em;line-height:1.8;color:var(--ink-dim)">
+          <p class="section-intro" style="text-transform:none;font-family:var(--font-body)">13-лунный год: 13 лун по 28 дней. Год начинается 26 июля.</p>
+          <p style="margin-top:10px;text-transform:uppercase">▸ ЛУНА ${m.moonNumber} ИЗ 13</p>
+          <p style="text-transform:none;font-size:12px;color:var(--ink-faint);margin-top:4px">${m.moonName}</p>
+        </div>`;
+      } else if (type === 'day') {
+        title = `ДЕНЬ ${m.moonDay} ЛУННОГО МЕСЯЦА`;
+        body = `<div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.06em;line-height:1.8;color:var(--ink-dim)">
+          <p class="section-intro" style="text-transform:none;font-family:var(--font-body)">Каждая луна — 28 дней, 4 недели по 7 дней.</p>
+          <p style="margin-top:10px;text-transform:uppercase">▸ ДЕНЬ ${m.moonDay} ИЗ 28</p>
+          <p style="text-transform:uppercase">▸ НЕДЕЛЯ ${m.heptad} — ${m.heptadColor}</p>
+        </div>`;
+      } else if (type === 'week') {
+        title = `ГЕПТАДА ${m.heptad} — ${m.heptadColor}`;
+        body = `<div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.06em;line-height:1.8;color:var(--ink-dim)">
+          <p class="section-intro" style="text-transform:none;font-family:var(--font-body)">Гептада — 7-дневная неделя внутри луны. 4 гептады в каждой луне.</p>
+          <p style="margin-top:10px;text-transform:uppercase">▸ ГЕПТАДА ${m.heptad} ИЗ 4</p>
+          <p style="text-transform:uppercase">▸ ЦВЕТ НЕДЕЛИ: ${m.heptadColor}</p>
+        </div>`;
+      } else if (type === 'plasma') {
+        title = `ПЛАЗМА: ${m.plasma.name}`;
+        body = `<div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.06em;line-height:1.8;color:var(--ink-dim)">
+          <p class="section-intro" style="text-transform:none;font-family:var(--font-body)">Плазма — ежедневная энергетическая практика. 7 плазм чередуются каждую неделю.</p>
+          <p style="margin-top:10px;text-transform:uppercase">▸ ЧАКРА: ${m.plasma.chakra}</p>
+          <p style="text-transform:none;font-size:12px;color:var(--ink-faint);margin-top:6px">${m.plasma.hint}</p>
+        </div>`;
       }
+      if (title && body) showInfoPopup(title, body);
     });
   });
 
-  card.querySelectorAll('[data-action="expand-tone"]').forEach(el => {
-    el.addEventListener('click', () => {
-      expandedPanel = expandedPanel === 'tone' ? null : 'tone';
-      render();
-      if (expandedPanel === 'tone') {
-        setTimeout(() => document.getElementById('panel-tone')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
-      }
-    });
-  });
-
-  card.querySelectorAll('[data-action="expand-wave"]').forEach(el => {
-    el.addEventListener('click', () => {
-      expandedPanel = expandedPanel === 'wave' ? null : 'wave';
-      render();
-      if (expandedPanel === 'wave')
-        setTimeout(() => document.getElementById('panel-wave')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
-    });
-  });
-
-  card.querySelectorAll('[data-action="expand-castle"]').forEach(el => {
-    el.addEventListener('click', () => {
-      expandedPanel = expandedPanel === 'castle' ? null : 'castle';
-      render();
-      if (expandedPanel === 'castle')
-        setTimeout(() => document.getElementById('panel-castle')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
-    });
-  });
-
-  // Close expand panels
-  card.querySelectorAll('.expand-close').forEach(el => {
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      expandedPanel = null;
-      render();
-    });
-  });
-
-  // Oracle tab: cross cell clicks highlight description
+  // Oracle: cross cell clicks show popup
+  const roleAreaMap = { guide: 0, anti: 1, analog: 2, hidden: 3 };
   card.querySelectorAll('.oracle-cell[data-oracle-role]').forEach(el => {
     el.addEventListener('click', () => {
-      const role = el.dataset.oracleRole;
-      if (role === 'main') return;
-      // Highlight matching row
-      card.querySelectorAll('.oracle-row').forEach(r => r.classList.remove('highlighted'));
-      const row = card.querySelector(`.oracle-row[data-oracle-row="${role}"]`);
-      if (row) {
-        row.classList.add('highlighted');
-        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
+      const area = el.dataset.oracleRole;
+      if (area === 'main') return;
+      const curKin = dreamspellKin(currentDate);
+      const o = oracle(curKin);
+      const kinMap = { guide: o.guide, anti: o.antipode, analog: o.analog, hidden: o.hidden };
+      showKinPopup(kinMap[area], ORACLE_ROLES[roleAreaMap[area]]);
     });
   });
 
-  // Oracle tab: row clicks navigate to that kin
+  // Oracle: row clicks show popup
   card.querySelectorAll('.oracle-row[data-oracle-kin]').forEach(el => {
     el.addEventListener('click', () => {
       const targetKin = +el.dataset.oracleKin;
-      const d = dateForKin(targetKin);
-      navigateToDate(d);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const area = el.dataset.oracleRow;
+      showKinPopup(targetKin, ORACLE_ROLES[roleAreaMap[area]]);
     });
   });
 
@@ -882,6 +1030,7 @@ function bindCardEvents(kin, tone, seal) {
     el.addEventListener('click', () => {
       const yb = yearBearer(currentDate);
       navigateToDate(yb.yearStart);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   });
 
@@ -895,18 +1044,19 @@ function bindCardEvents(kin, tone, seal) {
     });
   });
 
-  // Cycles tab: swipeable strips — update classes without DOM rebuild
+  // Cycles tab: swipeable strips — continuous kin update, snap on release
   card.querySelectorAll('.cycle-strip-grid[data-cycle]').forEach(strip => {
     let startX = 0;
     let cellW = 0;
-    let accum = 0;
+    let startKin = 0;
     const unit = +strip.dataset.unit;
 
     strip.addEventListener('pointerdown', (e) => {
       if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
-      cellW = strip.getBoundingClientRect().width / strip.children.length;
+      const cellCount = strip.querySelectorAll('.cycle-cell').length;
+      cellW = strip.getBoundingClientRect().width / cellCount;
       startX = e.clientX;
-      accum = 0;
+      startKin = cyclesKin;
       try { strip.setPointerCapture(e.pointerId); } catch (_) {}
       e.preventDefault();
     });
@@ -914,34 +1064,50 @@ function bindCardEvents(kin, tone, seal) {
     strip.addEventListener('pointermove', (e) => {
       if (!cellW) return;
       const dx = e.clientX - startX;
-      const cells = Math.round(-dx / cellW);
-      if (cells !== accum) {
-        const step = (cells - accum) * unit;
-        accum = cells;
-        let newKin = cyclesKin + step;
-        while (newKin < 1) newKin += 260;
-        while (newKin > 260) newKin -= 260;
+      // continuous: every pixel updates kin by (unit / cellW) kins
+      const rawDelta = Math.round((-dx / cellW) * unit);
+      let newKin = ((startKin + rawDelta - 1) % 260 + 260) % 260 + 1;
+      if (newKin !== cyclesKin) {
         cyclesKin = newKin;
         updateCyclesActive();
       }
     });
 
-    strip.addEventListener('pointerup', () => { cellW = 0; });
+    strip.addEventListener('pointerup', () => {
+      if (cellW) {
+        // snap cyclesKin to the nearest whole-cell boundary relative to startKin
+        let diff = cyclesKin - startKin;
+        while (diff < -130) diff += 260;
+        while (diff > 129) diff -= 260;
+        const snapped = ((startKin + Math.round(diff / unit) * unit - 1) % 260 + 260) % 260 + 1;
+        if (snapped !== cyclesKin) {
+          cyclesKin = snapped;
+          updateCyclesActive();
+        }
+      }
+      cellW = 0;
+    });
+
     strip.addEventListener('pointercancel', () => { cellW = 0; });
   });
 }
 
 /* ── Setup permanent events ── */
 function setupEvents() {
+  document.getElementById('today-btn').addEventListener('click', () => {
+    currentDate = new Date();
+    cyclesKin = null;
+    if (currentTab !== 'main') switchTab('main');
+    else render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
   document.getElementById('prev').addEventListener('click', () => {
     currentDate = addDays(currentDate, -1);
-    expandedPanel = null;
     cyclesKin = (currentTab === 'cycles') ? dreamspellKin(currentDate) : null;
     render();
   });
   document.getElementById('next').addEventListener('click', () => {
     currentDate = addDays(currentDate, 1);
-    expandedPanel = null;
     cyclesKin = (currentTab === 'cycles') ? dreamspellKin(currentDate) : null;
     render();
   });
@@ -955,7 +1121,6 @@ function setupEvents() {
     if (datePicker.value) {
       const [y, m, d] = datePicker.value.split('-').map(Number);
       currentDate = new Date(y, m - 1, d);
-      expandedPanel = null;
       cyclesKin = null;
       render();
     }
@@ -969,12 +1134,20 @@ function setupEvents() {
   // My Kin button
   document.getElementById('my-kin-btn').addEventListener('click', showMyKinModal);
 
-  // Close modal on overlay click or ESC
+  // Music button
+  document.getElementById('music-btn').addEventListener('click', toggleMusic);
+
+  // Close modal/popup on overlay click or ESC
   document.getElementById('my-kin-modal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('my-kin-modal')) closeMyKinModal();
   });
+  document.getElementById('kin-popup').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('kin-popup')) closeKinPopup();
+  });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && document.getElementById('my-kin-modal').style.display !== 'none') closeMyKinModal();
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('kin-popup').style.display !== 'none') closeKinPopup();
+    else if (document.getElementById('my-kin-modal').style.display !== 'none') closeMyKinModal();
   });
 
   // Swipe navigation
@@ -984,7 +1157,7 @@ function setupEvents() {
   card.addEventListener('touchend', e => {
     if (currentTab === 'tzolkin' || currentTab === 'cycles') return;
     const diff = e.changedTouches[0].clientX - startX;
-    if (Math.abs(diff) > 60) { currentDate = addDays(currentDate, diff > 0 ? -1 : 1); expandedPanel = null; cyclesKin = null; render(); }
+    if (Math.abs(diff) > 60) { currentDate = addDays(currentDate, diff > 0 ? -1 : 1); cyclesKin = null; render(); }
   }, { passive: true });
 
   // Telegram WebApp integration — do NOT override our neon theme colors
