@@ -197,7 +197,7 @@ function renderMain(kin, tone, seal) {
     <b>Направление:</b> ${sealInfo.direction_action_ru}<br>
     <b>Семья Земли:</b> ${sealInfo.earth_family_action_ru}<br>
     <b>Чакра:</b> ${sealInfo.chakra_ru}</p>
-    ${sealInfo.description_ru ? `<p style="margin-top:8px;color:var(--ink-faint);font-style:italic">${sealInfo.description_ru}</p>` : ''}
+    ${sealInfo.description_ru ? `<p class="section-intro" style="margin-top:8px">${sealInfo.description_ru}</p>` : ''}
     <button class="expand-close" data-close="seal">✕ СВЕРНУТЬ</button>
   </div>`;
 
@@ -206,7 +206,7 @@ function renderMain(kin, tone, seal) {
     <p><b>Функция:</b> ${toneInfo.function_ru || ''}<br>
     <b>Действие:</b> ${toneInfo.action_ru}<br>
     <b>Творческая сила:</b> ${toneInfo.creative_power_ru}</p>
-    ${toneInfo.description_ru ? `<p style="margin-top:8px;color:var(--ink-faint);font-style:italic">${toneInfo.description_ru}</p>` : ''}
+    ${toneInfo.description_ru ? `<p class="section-intro" style="margin-top:8px">${toneInfo.description_ru}</p>` : ''}
     <button class="expand-close" data-close="tone">✕ СВЕРНУТЬ</button>
   </div>`;
 
@@ -217,14 +217,14 @@ function renderMain(kin, tone, seal) {
     <p><b>Сила:</b> ${wsi.power_ru} · <b>Действие:</b> ${wsi.action_ru}<br>
     <b>Позиция:</b> день ${(kin - 1) % 13 + 1} из 13<br>
     <b>Пульсар:</b> ${p.name} — ${p.hint}</p>
-    <p style="margin-top:8px;color:var(--ink-faint);font-style:italic">Волна — 13-дневный цикл с единой темой. Всего 20 волн в цикле Цолькин.</p>
+    <p class="section-intro" style="margin-top:8px">Волна — 13-дневный цикл с единой темой. Всего 20 волн в цикле Цолькин.</p>
     <button class="expand-close" data-close="wave">✕ СВЕРНУТЬ</button>
   </div>`;
 
   html += `<div class="expand-panel${expandedPanel === 'castle' ? ' open' : ''}" id="panel-castle">
     <h3>🏰 ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}</h3>
     <p>${CASTLE_HINTS[cast]}</p>
-    <p style="margin-top:8px;color:var(--ink-faint);font-style:italic">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
+    <p class="section-intro" style="margin-top:8px">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
     <button class="expand-close" data-close="castle">✕ СВЕРНУТЬ</button>
   </div>`;
 
@@ -330,7 +330,7 @@ function renderMoon() {
   <div class="detail-section" id="plasma-section">
     <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПЛАЗМА: ${m.plasma.name}</h3>
     <p>${m.plasma.hint}</p>
-    <p style="color:var(--ink-faint);margin-top:4px">Чакра: ${m.plasma.chakra}</p>
+    <p class="section-intro" style="margin-top:4px">Чакра: ${m.plasma.chakra}</p>
     <p class="section-intro">Плазма — ежедневная энергетическая практика. 7 плазм повторяются каждую неделю.</p>
   </div>
   <div class="detail-section moon-clickable" data-action="year-bearer-nav">
