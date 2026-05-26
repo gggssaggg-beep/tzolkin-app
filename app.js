@@ -105,7 +105,9 @@ const _vib = window._vibrate ?? navigator.vibrate?.bind(navigator) ?? null;
 
 function haptic(strength = 'light') {
   const ms = { light: 50, medium: 100, heavy: 150, selection: 30 }[strength] ?? 50;
+  // Physical vibration
   try { _vib?.(ms); } catch (_) {}
+  // Telegram native haptics
   try {
     const hf = window.Telegram?.WebApp?.HapticFeedback;
     if (hf) {
@@ -113,6 +115,14 @@ function haptic(strength = 'light') {
       else hf.impactOccurred(strength);
     }
   } catch (_) {}
+  // Visual pulse — confirms haptic is firing regardless of physical vibration support
+  const app = document.getElementById('app');
+  if (app) {
+    app.classList.remove('haptic-flash');
+    void app.offsetWidth; // force reflow to restart animation
+    app.classList.add('haptic-flash');
+    setTimeout(() => app.classList.remove('haptic-flash'), 150);
+  }
 }
 
 /* ── Vibration toast ── */
