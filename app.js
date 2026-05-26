@@ -101,7 +101,7 @@ function showInfoPopup(title, bodyHtml) {
 
 /* ── Haptic feedback ── */
 function haptic(strength = 'light') {
-  const ms = { light: 25, medium: 50, heavy: 80, selection: 15 }[strength] ?? 25;
+  const ms = { light: 50, medium: 100, heavy: 150, selection: 30 }[strength] ?? 50;
   try { navigator.vibrate?.(ms); } catch (_) {}
   try {
     const hf = window.Telegram?.WebApp?.HapticFeedback;
@@ -110,6 +110,38 @@ function haptic(strength = 'light') {
       else hf.impactOccurred(strength);
     }
   } catch (_) {}
+}
+
+/* ── Vibration diagnostics toast ── */
+let _toastTimer = null;
+function showVibToast(msg) {
+  let el = document.getElementById('vib-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'vib-toast';
+    el.className = 'vib-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function testVibration() {
+  const tg = window.Telegram?.WebApp;
+  const hasTgData = !!tg?.initData;
+  const platform = tg?.platform || '—';
+  const hasVibApi = 'vibrate' in navigator;
+  // fire strong pattern: on-off-on
+  let vibResult = false;
+  try { vibResult = navigator.vibrate?.([150, 80, 150]) ?? false; } catch (_) {}
+  try { tg?.HapticFeedback?.impactOccurred('heavy'); } catch (_) {}
+  showVibToast(
+    `vibrate API: ${hasVibApi ? 'есть' : 'нет'}\n` +
+    `vibrate() → ${vibResult}\n` +
+    `Telegram: ${hasTgData ? 'да' : 'нет'} · ${platform}`
+  );
 }
 
 /* ── Ambient music ── */
@@ -1189,8 +1221,16 @@ function setupEvents() {
   // My Kin button
   document.getElementById('my-kin-btn').addEventListener('click', showMyKinModal);
 
-  // Music button
-  document.getElementById('music-btn').addEventListener('click', toggleMusic);
+  // Music button: click = toggle, long press (600ms) = vibration test
+  const musicBtn = document.getElementById('music-btn');
+  let musicLongTimer = null;
+  musicBtn.addEventListener('pointerdown', () => {
+    musicLongTimer = setTimeout(() => { musicLongTimer = null; testVibration(); }, 600);
+  });
+  musicBtn.addEventListener('pointerup', () => {
+    if (musicLongTimer) { clearTimeout(musicLongTimer); musicLongTimer = null; toggleMusic(); }
+  });
+  musicBtn.addEventListener('pointercancel', () => { clearTimeout(musicLongTimer); musicLongTimer = null; });
 
   // Close modal/popup on overlay click or ESC
   document.getElementById('my-kin-modal').addEventListener('click', (e) => {

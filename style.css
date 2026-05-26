@@ -1249,6 +1249,30 @@ html, body {
   box-shadow: 0 0 calc(14px * var(--glow)) color-mix(in oklab, var(--n-cyan) 40%, transparent);
 }
 
+/* Vibration toast */
+.vib-toast {
+  position: fixed;
+  bottom: 130px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(5,0,16,0.92);
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  padding: 10px 18px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  white-space: pre;
+  text-align: center;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .3s;
+  letter-spacing: .04em;
+  line-height: 1.7;
+}
+.vib-toast.show { opacity: 1; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
