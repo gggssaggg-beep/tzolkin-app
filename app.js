@@ -10,6 +10,7 @@ let currentTab = 'main';
 
 /* ── Cycles tab state ── */
 let cyclesKin = null; // lazy init on first render
+let dragUnit = 0;     // unit of currently dragged strip, 0 = not dragging
 
 const MONTHS_RU = [
   'января','февраля','марта','апреля','мая','июня',
@@ -466,23 +467,36 @@ function updateCyclesActive() {
   const castleColors = ['red','cyan','blue','amber','violet'];
   const waveColors = ['red','cyan','blue','amber'];
 
-  // Update castle cells
+  // dragUnit===52 means only update castle strip; lower strips stay frozen during drag
+  const lowerActive = dragUnit !== 52;
+
+  // Update castle cells + counter
   const castleCells = document.querySelectorAll('[data-cycle="castle"] .cycle-cell');
   castleCells.forEach((c, i) => c.classList.toggle('active', i === castIdx));
+  const castNum = document.getElementById('cyc-castle-num');
+  if (castNum) castNum.textContent = `${castIdx + 1} / 5 · 52 ДНЯ`;
 
-  // Update wave cells
-  const waveCells = document.querySelectorAll('[data-cycle="wave"] .cycle-cell');
-  waveCells.forEach((c, i) => c.classList.toggle('active', i === waveInCastle));
+  // Update wave cells + counter (skip when dragging castle)
+  if (lowerActive) {
+    const waveCells = document.querySelectorAll('[data-cycle="wave"] .cycle-cell');
+    waveCells.forEach((c, i) => c.classList.toggle('active', i === waveInCastle));
+    const waveNum = document.getElementById('cyc-wave-num');
+    if (waveNum) waveNum.textContent = `${waveInCastle + 1} / 4 · 13 КИНОВ`;
 
-  // Update tone cells
-  const toneCells = document.querySelectorAll('[data-cycle="tone"] .cycle-cell');
-  toneCells.forEach((c, i) => c.classList.toggle('active', i === tone - 1));
+    // Update tone cells + counter
+    const toneCells = document.querySelectorAll('[data-cycle="tone"] .cycle-cell');
+    toneCells.forEach((c, i) => c.classList.toggle('active', i === tone - 1));
+    const toneName = document.getElementById('cyc-tone-name');
+    if (toneName) toneName.textContent = toneInfo.name_ru.toUpperCase();
+  }
 
   // Update strip colors
   const strips = document.querySelectorAll('.cycle-strip');
   if (strips[0]) strips[0].className = `cycle-strip c-${castleColors[castIdx]}`;
-  if (strips[1]) strips[1].className = `cycle-strip c-${waveColors[waveInCastle]}`;
-  if (strips[2]) strips[2].className = `cycle-strip c-${waveColors[waveInCastle]}`;
+  if (lowerActive) {
+    if (strips[1]) strips[1].className = `cycle-strip c-${waveColors[waveInCastle]}`;
+    if (strips[2]) strips[2].className = `cycle-strip c-${waveColors[waveInCastle]}`;
+  }
 
   // Update info card
   const infoCard = document.querySelector('.cycle-info-card');
@@ -507,8 +521,10 @@ function updateCyclesActive() {
     </div>`;
   }
 
-  // Move smooth markers over the active cells
+  // Move smooth markers (skip lower strips when dragging castle)
   document.querySelectorAll('.cycle-strip-grid[data-cycle]').forEach(grid => {
+    const gridUnit = +grid.dataset.unit;
+    if (dragUnit === 52 && gridUnit !== 52) return;
     const marker = grid.querySelector('.cycle-marker');
     const activeCell = grid.querySelector('.cycle-cell.active');
     if (!marker || !activeCell) return;
@@ -564,7 +580,7 @@ function renderCycles(kin) {
   html += `<div class="cycle-strip c-${castleColors[castIdx]}">
     <div class="cycle-strip-header">
       <span class="eyebrow">ЗАМОК</span>
-      <span class="eyebrow muted">${castNum} / 5 · 52 ДНЯ</span>
+      <span class="eyebrow muted" id="cyc-castle-num">${castNum} / 5 · 52 ДНЯ</span>
     </div>
     <div class="cycle-strip-grid" style="grid-template-columns:repeat(5,1fr)" data-cycle="castle" data-unit="52">`;
   for (let i = 0; i < 5; i++) {
@@ -581,7 +597,7 @@ function renderCycles(kin) {
   html += `<div class="cycle-strip c-${waveColors[waveInCastle]}" style="margin-left:14px">
     <div class="cycle-strip-header">
       <span class="eyebrow">ВОЛНА</span>
-      <span class="eyebrow muted">${waveInCastle + 1} / 4 · 13 КИНОВ</span>
+      <span class="eyebrow muted" id="cyc-wave-num">${waveInCastle + 1} / 4 · 13 КИНОВ</span>
     </div>
     <div class="cycle-strip-grid" style="grid-template-columns:repeat(4,1fr)" data-cycle="wave" data-unit="13">`;
   for (let i = 0; i < 4; i++) {
@@ -598,7 +614,7 @@ function renderCycles(kin) {
   html += `<div class="cycle-strip c-${waveColors[waveInCastle]}" style="margin-left:28px">
     <div class="cycle-strip-header">
       <span class="eyebrow">ПУЛЬСАР · ТОН</span>
-      <span class="eyebrow muted">${toneInfo.name_ru.toUpperCase()}</span>
+      <span class="eyebrow muted" id="cyc-tone-name">${toneInfo.name_ru.toUpperCase()}</span>
     </div>
     <div class="cycle-strip-grid" style="grid-template-columns:repeat(13,1fr)" data-cycle="tone" data-unit="1">`;
   for (let i = 0; i < 13; i++) {
@@ -1057,6 +1073,7 @@ function bindCardEvents(kin, tone, seal) {
       cellW = strip.getBoundingClientRect().width / cellCount;
       startX = e.clientX;
       startKin = cyclesKin;
+      dragUnit = unit;
       try { strip.setPointerCapture(e.pointerId); } catch (_) {}
       e.preventDefault();
     });
@@ -1064,7 +1081,6 @@ function bindCardEvents(kin, tone, seal) {
     strip.addEventListener('pointermove', (e) => {
       if (!cellW) return;
       const dx = e.clientX - startX;
-      // continuous: every pixel updates kin by (unit / cellW) kins
       const rawDelta = Math.round((-dx / cellW) * unit);
       let newKin = ((startKin + rawDelta - 1) % 260 + 260) % 260 + 1;
       if (newKin !== cyclesKin) {
@@ -1075,20 +1091,23 @@ function bindCardEvents(kin, tone, seal) {
 
     strip.addEventListener('pointerup', () => {
       if (cellW) {
-        // snap cyclesKin to the nearest whole-cell boundary relative to startKin
+        // snap to nearest whole-cell boundary relative to startKin
         let diff = cyclesKin - startKin;
         while (diff < -130) diff += 260;
         while (diff > 129) diff -= 260;
         const snapped = ((startKin + Math.round(diff / unit) * unit - 1) % 260 + 260) % 260 + 1;
+        dragUnit = 0; // clear before final full update
         if (snapped !== cyclesKin) {
           cyclesKin = snapped;
-          updateCyclesActive();
         }
+        updateCyclesActive(); // full update with all strips
+      } else {
+        dragUnit = 0;
       }
       cellW = 0;
     });
 
-    strip.addEventListener('pointercancel', () => { cellW = 0; });
+    strip.addEventListener('pointercancel', () => { dragUnit = 0; cellW = 0; });
   });
 }
 
