@@ -100,9 +100,18 @@ function showInfoPopup(title, bodyHtml) {
 }
 
 /* ── Haptic feedback ── */
+let _vibChecked = false;
+
 function haptic(strength = 'light') {
   const ms = { light: 50, medium: 100, heavy: 150, selection: 30 }[strength] ?? 50;
-  try { navigator.vibrate?.(ms); } catch (_) {}
+  try {
+    const result = navigator.vibrate?.(ms);
+    // First call: check if Chrome blocked vibration and guide user
+    if (!_vibChecked) {
+      _vibChecked = true;
+      if (result === false) showVibBlockedHint();
+    }
+  } catch (_) {}
   try {
     const hf = window.Telegram?.WebApp?.HapticFeedback;
     if (hf) {
@@ -112,35 +121,42 @@ function haptic(strength = 'light') {
   } catch (_) {}
 }
 
-/* ── Vibration diagnostics toast ── */
+function showVibBlockedHint() {
+  showVibToast(
+    'Вибрация заблокирована браузером.\n' +
+    'Chrome → ⋮ → Настройки сайта → Вибрация → Разрешить'
+  );
+}
+
+/* ── Vibration toast / diagnostics ── */
 let _toastTimer = null;
-function showVibToast(msg) {
+function showVibToast(msg, duration = 5000) {
   let el = document.getElementById('vib-toast');
   if (!el) {
     el = document.createElement('div');
     el.id = 'vib-toast';
     el.className = 'vib-toast';
+    el.addEventListener('click', () => el.classList.remove('show'));
     document.body.appendChild(el);
   }
   el.textContent = msg;
   el.classList.add('show');
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), duration);
 }
 
 function testVibration() {
   const tg = window.Telegram?.WebApp;
-  const hasTgData = !!tg?.initData;
-  const platform = tg?.platform || '—';
   const hasVibApi = 'vibrate' in navigator;
-  // fire strong pattern: on-off-on
-  let vibResult = false;
-  try { vibResult = navigator.vibrate?.([150, 80, 150]) ?? false; } catch (_) {}
+  let vibResult;
+  try { vibResult = navigator.vibrate?.([150, 80, 150]); } catch (_) {}
   try { tg?.HapticFeedback?.impactOccurred('heavy'); } catch (_) {}
+  const tgInfo = tg?.initData ? `TG · ${tg.platform}` : 'PWA';
   showVibToast(
     `vibrate API: ${hasVibApi ? 'есть' : 'нет'}\n` +
-    `vibrate() → ${vibResult}\n` +
-    `Telegram: ${hasTgData ? 'да' : 'нет'} · ${platform}`
+    `vibrate() → ${vibResult ?? '—'}\n` +
+    `Контекст: ${tgInfo}`,
+    5000
   );
 }
 
