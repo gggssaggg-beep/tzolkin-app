@@ -1371,6 +1371,67 @@ html, body {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Kin search
+   ───────────────────────────────────────────────────────────── */
+.kin-search-row {
+  display: flex;
+  gap: 8px;
+}
+.kin-search-input {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--hairline-2);
+  border-radius: 10px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color .2s;
+  -moz-appearance: textfield;
+}
+.kin-search-input::-webkit-inner-spin-button,
+.kin-search-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.kin-search-input:focus { border-color: var(--n-cyan); }
+.kin-search-input::placeholder { color: var(--ink-faint); }
+.kin-search-go {
+  width: 48px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: rgba(125,223,239,0.1);
+  color: var(--n-cyan);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.kin-search-go:active { background: rgba(125,223,239,0.2); transform: scale(0.95); }
+
+/* ─────────────────────────────────────────────────────────────
+   Share button
+   ───────────────────────────────────────────────────────────── */
+.share-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: rgba(125,223,239,0.08);
+  color: var(--n-cyan);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  transition: all .2s;
+}
+.share-btn:active {
+  background: rgba(125,223,239,0.18);
+  transform: scale(0.97);
+}
+
+/* ─────────────────────────────────────────────────────────────
    Tab transition
    ───────────────────────────────────────────────────────────── */
 #card {

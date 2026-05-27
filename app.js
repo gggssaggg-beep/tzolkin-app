@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '42';
+const APP_VER = '43';
 let sealsData, tonesData, kinsData, mayaData;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -257,6 +257,153 @@ async function loadData() {
   mayaData = m;
 }
 
+/* ── Share card generator ── */
+const NEON_HEX = { red: '#e8453c', cyan: '#7ddfef', blue: '#6b7fff', amber: '#efc94c', violet: '#c07dff' };
+
+async function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function shareKin() {
+  const kin = dreamspellKin(currentDate);
+  const { tone, seal } = kinToToneSeal(kin);
+  const info = kinsData[String(kin)];
+  const si = sealsData[seal];
+  const ti = tonesData[tone];
+  const color = sealColor(seal);
+  const hex = NEON_HEX[color];
+  const gap = isGap(kin);
+  const dateStr = formatDateRu(currentDate).toUpperCase();
+
+  const W = 640, H = 480;
+  const cvs = document.createElement('canvas');
+  cvs.width = W; cvs.height = H;
+  const c = cvs.getContext('2d');
+
+  // Background gradient
+  const bg = c.createRadialGradient(W * 0.3, H * 0.15, 0, W * 0.5, H * 0.5, W * 0.7);
+  bg.addColorStop(0, '#1a0a40');
+  bg.addColorStop(1, '#050010');
+  c.fillStyle = bg;
+  c.fillRect(0, 0, W, H);
+
+  // Subtle grid lines
+  c.strokeStyle = 'rgba(180,160,255,0.06)';
+  c.lineWidth = 1;
+  for (let x = 0; x < W; x += 40) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
+  for (let y = 0; y < H; y += 40) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+
+  // Load seal and tone images
+  let sealImage, toneImage;
+  try {
+    [sealImage, toneImage] = await Promise.all([
+      loadImage(`img/seal_${String(seal).padStart(2, '0')}.png`),
+      loadImage(`img/tone_${String(tone).padStart(2, '0')}.png`),
+    ]);
+  } catch (_) {}
+
+  // Seal circle with glow
+  const cx = 180, cy = 200;
+  c.save();
+  c.shadowColor = hex;
+  c.shadowBlur = 30;
+  c.beginPath();
+  c.arc(cx, cy, 70, 0, Math.PI * 2);
+  c.fillStyle = 'rgba(20,10,50,0.7)';
+  c.fill();
+  c.strokeStyle = hex;
+  c.lineWidth = 2;
+  c.stroke();
+  c.restore();
+
+  if (sealImage) c.drawImage(sealImage, cx - 50, cy - 50, 100, 100);
+
+  // Tone image above seal
+  if (toneImage) c.drawImage(toneImage, cx - 20, cy - 100, 40, 40);
+
+  // Right side text
+  const tx = 310;
+  c.fillStyle = 'rgba(232,226,255,0.4)';
+  c.font = '500 11px "Space Grotesk", sans-serif';
+  c.letterSpacing = '3px';
+  c.fillText(dateStr, tx, 80);
+  c.letterSpacing = '0px';
+
+  // Kin number with glow
+  c.save();
+  c.shadowColor = hex;
+  c.shadowBlur = 20;
+  c.fillStyle = hex;
+  c.font = '700 72px "JetBrains Mono", monospace';
+  c.fillText(String(kin), tx, 155);
+  c.restore();
+
+  if (gap) {
+    const kinW = c.measureText(String(kin)).width;
+    c.fillStyle = '#4ade80';
+    c.font = '700 14px "JetBrains Mono", monospace';
+    c.fillText('GAP', tx + kinW + 10, 138);
+  }
+
+  // Title
+  c.fillStyle = '#e8e2ff';
+  c.font = '600 18px "Space Grotesk", sans-serif';
+  const title = info?.title || '';
+  c.fillText(title, tx, 185);
+
+  // Seal + Tone info
+  c.fillStyle = 'rgba(232,226,255,0.55)';
+  c.font = '500 13px "JetBrains Mono", monospace';
+  c.fillText(`${si.name_ru.toUpperCase()} · ${si.name_maya}`, tx, 220);
+  c.fillText(`TOH ${tone} — ${ti.name_ru.toUpperCase()}`, tx, 242);
+
+  // Affirmation
+  const aff = (info?.affirmation || '').split('\n').filter(l => l.trim());
+  if (aff.length) {
+    c.fillStyle = 'rgba(125,223,239,0.15)';
+    c.fillRect(tx - 10, 270, W - tx - 20, aff.length * 22 + 20);
+    c.strokeStyle = 'rgba(125,223,239,0.3)';
+    c.strokeRect(tx - 10, 270, W - tx - 20, aff.length * 22 + 20);
+
+    c.fillStyle = 'rgba(125,223,239,0.7)';
+    c.font = '12px "Space Grotesk", sans-serif';
+    aff.forEach((line, i) => {
+      const txt = line.trim();
+      if (txt.length > 42) c.fillText(txt.slice(0, 42) + '…', tx, 292 + i * 22);
+      else c.fillText(txt, tx, 292 + i * 22);
+    });
+  }
+
+  // Footer
+  c.fillStyle = 'rgba(180,160,255,0.25)';
+  c.font = '10px "JetBrains Mono", monospace';
+  c.letterSpacing = '2px';
+  c.fillText('TZOLKIN · DREAMSPELL', 24, H - 20);
+  c.letterSpacing = '0px';
+
+  // Convert to blob and share
+  cvs.toBlob(async (blob) => {
+    const file = new File([blob], `kin-${kin}.png`, { type: 'image/png' });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: `Кин ${kin} — ${title}`, text: `${dateStr} · ${title}` });
+        return;
+      } catch (_) {}
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `kin-${kin}.png`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, 'image/png');
+}
+
 /* ── Date utilities ── */
 function formatDateRu(d) {
   return `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()}`;
@@ -382,6 +529,7 @@ function renderMain(kin, tone, seal) {
         <div class="info-sub">${CASTLE_HINTS[cast]?.split('—')[0]?.trim() || ''}</div>
       </div>
     </div>
+    <button class="share-btn" data-action="share-kin">ПОДЕЛИТЬСЯ</button>
   </div>`;
 
   // Seal detail block
@@ -426,6 +574,15 @@ function renderMain(kin, tone, seal) {
   const summary = info.summary || '';
   if (summary)
     html += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> АРХЕТИП</h3><p class="section-intro">Обобщённый образ Кина — соединение Печати и Тона в единый смысл.</p><p class="pp-main">${summary}</p></div>`;
+
+  // Kin search
+  html += `<div class="kin-card kin-search-card">
+    <div class="eyebrow" style="margin-bottom:8px">ПЕРЕЙТИ К КИНУ</div>
+    <div class="kin-search-row">
+      <input type="number" id="kin-search-input" min="1" max="260" placeholder="1–260" class="kin-search-input">
+      <button id="kin-search-go" class="kin-search-go">→</button>
+    </div>
+  </div>`;
 
   return html;
 }
@@ -964,6 +1121,18 @@ function renderPersonal() {
       </div>
     </div>
   </div>
+  <div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-${bColor});box-shadow:0 0 8px var(--n-${bColor})"></span>
+      ПЕЧАТЬ — ${sealImg(bSeal, 20)} ${bSealInfo.name_ru}</h3>
+    <div class="pp-props">▸ СУТЬ: ${bSealInfo.essence_ru}<br>▸ СИЛА: ${bSealInfo.power_ru}<br>▸ ДЕЙСТВИЕ: ${bSealInfo.action_ru}</div>
+    ${bSealInfo.description_ru ? `<p class="pp-main">${bSealInfo.description_ru}</p>` : ''}
+  </div>
+  <div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>
+      ТОН ${bTone} — ${toneImg(bTone, 20)} ${bToneInfo.name_ru}</h3>
+    <div class="pp-props">${[bToneInfo.function_ru ? `▸ ФУНКЦИЯ: ${bToneInfo.function_ru}` : '', bToneInfo.creative_power_ru ? `▸ ТВОРЧЕСКАЯ СИЛА: ${bToneInfo.creative_power_ru}` : '', bToneInfo.action_ru ? `▸ ДЕЙСТВИЕ: ${bToneInfo.action_ru}` : ''].filter(Boolean).join('<br>')}</div>
+    ${bToneInfo.description_ru ? `<p class="pp-main">${bToneInfo.description_ru}</p>` : ''}
+  </div>
   <div class="kin-card">
     <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> КРЕСТ СУДЬБЫ</h3>
     <p class="section-intro" style="margin-bottom:8px">Четыре энергии вашего Кина. Нажмите на элемент для подробностей.</p>
@@ -982,6 +1151,28 @@ function renderPersonal() {
           + mcell(bOracle.hidden, 'ОККУЛЬТНЫЙ УЧИТЕЛЬ', 'hidden');
       })()}
     </div>
+    <div class="oracle-list">${(() => {
+      const roles = [
+        { key: 'guide', kin: bOracle.guide, name: 'Управитель', desc: 'Высшая направляющая сила. Определяет, откуда приходит вдохновение и интуиция.' },
+        { key: 'analog', kin: bOracle.analog, name: 'Аналог', desc: 'Союзник и поддержка. Энергия, которая дополняет и усиливает вашу природу.' },
+        { key: 'antipode', kin: bOracle.antipode, name: 'Антипод', desc: 'Вызов и рост. Противоположная сила, через принятие которой раскрывается мудрость.' },
+        { key: 'hidden', kin: bOracle.hidden, name: 'Оккультный учитель', desc: 'Скрытая сила. Неочевидный дар, который раскрывается через внутреннюю работу.' },
+      ];
+      return roles.map(r => {
+        const { seal: rs } = kinToToneSeal(r.kin);
+        const rsi = sealsData[rs];
+        const rc = sealColor(rs);
+        const rTitle = kinsData[String(r.kin)]?.title || '';
+        return `<div class="oracle-row" data-popup-kin="${r.kin}" data-popup-area="${r.key}">
+          <div class="oracle-seal-img c-${rc}">${sealImg(rs, 32, true)}</div>
+          <div class="oracle-info">
+            <div class="oracle-role">${r.name}</div>
+            <div class="oracle-name">КИН ${r.kin} — ${rTitle}</div>
+            <div class="oracle-hint">${r.desc}</div>
+            <div style="font-size:11px;color:var(--ink-faint);margin-top:2px">${rsi.essence_ru} · ${rsi.power_ru}</div>
+          </div></div>`;
+      }).join('');
+    })()}</div>
   </div>
   <div class="kin-card">
     <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span> СВЯЗЬ С ТЕКУЩИМ ДНЁМ</h3>
@@ -1239,6 +1430,26 @@ function render() {
 function bindCardEvents(kin, tone, seal) {
   const card = document.getElementById('card');
 
+  // Share button
+  card.querySelectorAll('[data-action="share-kin"]').forEach(el => {
+    el.addEventListener('click', () => { haptic('medium'); shareKin(); });
+  });
+
+  // Kin search
+  const searchInput = document.getElementById('kin-search-input');
+  const searchGo = document.getElementById('kin-search-go');
+  if (searchInput && searchGo) {
+    const goToKin = () => {
+      const n = parseInt(searchInput.value, 10);
+      if (n >= 1 && n <= 260) {
+        haptic('light');
+        navigateToDate(dateForKin(n));
+      }
+    };
+    searchGo.addEventListener('click', goToKin);
+    searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') goToKin(); });
+  }
+
   // Shared: build wave popup content for a given kin
   function _wavePopupHtml(k) {
     const { tone: t } = kinToToneSeal(k);
@@ -1348,6 +1559,18 @@ function bindCardEvents(kin, tone, seal) {
           <p class="pp-main">${m.plasma.hint}</p>`;
       }
       if (title && body) showInfoPopup(title, body);
+    });
+  });
+
+  // Personal tab: cross cell & row clicks show popup
+  const personalRoles = { guide: 0, analog: 2, antipode: 1, hidden: 3 };
+  card.querySelectorAll('[data-popup-kin]').forEach(el => {
+    el.addEventListener('click', () => {
+      const k = +el.dataset.popupKin;
+      const area = el.dataset.popupArea;
+      if (area === 'main') return;
+      const ri = personalRoles[area] ?? personalRoles[area === 'anti' ? 'antipode' : area];
+      showKinPopup(k, ri !== undefined ? ORACLE_ROLES[ri] : null);
     });
   });
 
