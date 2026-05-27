@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '38';
+const APP_VER = '39';
 let sealsData, tonesData, kinsData, mayaData;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -60,10 +60,10 @@ function showKinPopup(kin, roleInfo) {
   const gap = isGap(kin);
 
   let html = `<div style="text-align:center;margin-bottom:12px">
+    <div style="margin-bottom:6px">${toneImg(tone, 28)}</div>
     <div class="seal-badge ${color} c-${color}" style="width:64px;height:64px;margin:0 auto 6px">
       ${sealImg(seal, 52, true)}
     </div>
-    <div style="margin-bottom:4px">${toneImg(tone, 28)}</div>
     <div class="kin-num c-${color}" style="font-size:24px">${kin}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
     <div class="display" style="font-size:11px;margin-top:4px">${info?.title || ''}</div>`;
   if (roleInfo) {
@@ -72,7 +72,7 @@ function showKinPopup(kin, roleInfo) {
   }
   html += `</div>
     <div class="hr"></div>
-    <div style="font-size:12px;line-height:1.7;color:var(--ink-dim)">
+    <div style="font-size:12px;line-height:1.7;color:var(--ink)">
       <p>${sealImg(seal, 16)} <b>${si.name_ru}</b> (${si.name_maya})</p>
       <p>Сущность: ${si.essence_ru}</p>
       <p>Сила: ${si.power_ru} · Действие: ${si.action_ru}</p>
@@ -300,10 +300,7 @@ function navigateToDate(d) {
   render();
 }
 
-let previousTab = 'main';
-
 function switchTab(tab) {
-  if (currentTab !== 'personal') previousTab = currentTab;
   document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
   const btn = document.querySelector(`.tab[data-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
@@ -311,10 +308,6 @@ function switchTab(tab) {
   render();
 }
 
-function closeMyKinModal() {
-  document.getElementById('my-kin-modal').style.display = 'none';
-  if (currentTab === 'personal') switchTab(previousTab);
-}
 
 /* ── WaveBar component ── */
 function renderWaveBar(tone, colorCls) {
@@ -355,8 +348,8 @@ function renderMain(kin, tone, seal) {
 
   html += `<div class="kin-card">
     <div class="kin-header">
-      <div class="seal-badge ${color} c-${color}">${sealImg(seal, 80, true)}</div>
       <div class="tone-above">${toneImg(tone, 36)}</div>
+      <div class="seal-badge ${color} c-${color}">${sealImg(seal, 80, true)}</div>
       <div class="kin-number c-${color}">${kin}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
       <div class="kin-title">${info.title}</div>
       <div class="kin-subtitle">${sealInfo.name_maya} · ${toneImg(tone, 18)} ТОН ${tone} — ${toneInfo.name_ru}</div>
@@ -383,30 +376,21 @@ function renderMain(kin, tone, seal) {
   html += `<div class="detail-section">
     <h3><span class="dot" style="background:var(--n-${color});box-shadow:0 0 8px var(--n-${color})"></span>
       ПЕЧАТЬ — ${sealImg(seal, 20)} ${sealInfo.name_ru} · ${sealInfo.name_maya}</h3>
-    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
-      <p>▸ СУТЬ: ${sealInfo.essence_ru}</p>
-      <p>▸ СИЛА: ${sealInfo.power_ru}</p>
-      <p>▸ ДЕЙСТВИЕ: ${sealInfo.action_ru}</p>
-      ${sealInfo.chakra_ru ? `<p>▸ ЧАКРА: ${sealInfo.chakra_ru}</p>` : ''}
-      ${sealInfo.direction_action_ru ? `<p>▸ ${sealInfo.direction_action_ru}</p>` : ''}
-      ${sealInfo.earth_family_action_ru ? `<p>▸ ${sealInfo.earth_family_action_ru}</p>` : ''}
-    </div>
+    <p class="section-intro">Один из 20 архетипов Цолькина. Суть, сила и направление действия.</p>
+    <div class="pp-props">▸ СУТЬ: ${sealInfo.essence_ru}<br>▸ СИЛА: ${sealInfo.power_ru}<br>▸ ДЕЙСТВИЕ: ${sealInfo.action_ru}${sealInfo.chakra_ru ? `<br>▸ ЧАКРА: ${sealInfo.chakra_ru}` : ''}${sealInfo.direction_action_ru ? `<br>▸ ${sealInfo.direction_action_ru}` : ''}${sealInfo.earth_family_action_ru ? `<br>▸ ${sealInfo.earth_family_action_ru}` : ''}</div>
     ${sealInfo.keywords?.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
       ${sealInfo.keywords.map(kw => `<span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;padding:3px 9px;border:1px solid var(--hairline-2);border-radius:20px;color:var(--ink-dim)">${kw}</span>`).join('')}
     </div>` : ''}
-    ${sealInfo.description_ru ? `<p>${sealInfo.description_ru}</p>` : ''}
+    ${sealInfo.description_ru ? `<p class="pp-main">${sealInfo.description_ru}</p>` : ''}
   </div>`;
 
   // Tone detail block
   html += `<div class="detail-section">
     <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>
       ТОН ${tone} — ${toneImg(tone, 20)} ${toneInfo.name_ru}</h3>
-    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
-      ${toneInfo.function_ru ? `<p>▸ ФУНКЦИЯ: ${toneInfo.function_ru}</p>` : ''}
-      ${toneInfo.creative_power_ru ? `<p>▸ ТВОРЧЕСКАЯ СИЛА: ${toneInfo.creative_power_ru}</p>` : ''}
-      ${toneInfo.action_ru ? `<p>▸ ДЕЙСТВИЕ: ${toneInfo.action_ru}</p>` : ''}
-    </div>
-    ${toneInfo.description_ru ? `<p>${toneInfo.description_ru}</p>` : ''}
+    <p class="section-intro">Числовой импульс от 1 до 13. Задаёт ритм и способ действия Кина.</p>
+    <div class="pp-props">${[toneInfo.function_ru ? `▸ ФУНКЦИЯ: ${toneInfo.function_ru}` : '', toneInfo.creative_power_ru ? `▸ ТВОРЧЕСКАЯ СИЛА: ${toneInfo.creative_power_ru}` : '', toneInfo.action_ru ? `▸ ДЕЙСТВИЕ: ${toneInfo.action_ru}` : ''].filter(Boolean).join('<br>')}</div>
+    ${toneInfo.description_ru ? `<p class="pp-main">${toneInfo.description_ru}</p>` : ''}
     ${toneInfo.question_ru ? `<div class="question-block" style="margin-top:12px"><div class="q">❓ ${toneInfo.question_ru}</div></div>` : ''}
   </div>`;
 
@@ -444,8 +428,8 @@ function renderOracle(kin) {
     const isz = isBig ? 46 : 32;
     return `<div class="oracle-cell c-${c} ${isBig ? 'main' : ''}" style="grid-area:${area}" data-oracle-role="${area}">
       <div class="role">${role}</div>
-      <div class="seal-badge ${c}" style="width:${bsz}px;height:${bsz}px;margin:4px auto 2px">${sealImg(seal, isz, true)}</div>
-      <div style="margin:1px 0">${toneImg(kt, 16)}</div>
+      <div style="margin:2px 0">${toneImg(kt, 16)}</div>
+      <div class="seal-badge ${c}" style="width:${bsz}px;height:${bsz}px;margin:2px auto">${sealImg(seal, isz, true)}</div>
       <div class="kin-num-cell">${k}</div>
     </div>`;
   }
@@ -496,8 +480,7 @@ function renderMoon() {
 
   return `<div class="kin-card">
     <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> 13-ЛУННЫЙ КАЛЕНДАРЬ</h3>
-    <p class="section-intro">Год из 13 лун по 28 дней. Каждая луна = 4 недели. Начало года — 26 июля.</p>
-    <p class="section-intro">${m.moonName}</p>
+    <p class="section-intro">Год из 13 лун по 28 дней. Каждая луна = 4 недели. Начало года — 26 июля. ${m.moonName}</p>
     <div class="info-grid" style="margin-top:12px">
       <div class="info-item moon-clickable" data-action="moon-popup" data-moon-type="luna">
         <div class="info-label">ЛУНА ▸</div>
@@ -516,7 +499,7 @@ function renderMoon() {
   <div class="detail-section moon-clickable" data-action="year-bearer-nav">
     <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ГОД: ${sealImg(ybTS.seal, 20)} ${ybTitle}</h3>
     <p class="section-intro">Каждый год носит имя Кина, выпадающего на 26 июля. Нажмите, чтобы перейти к 26 июля.</p>
-    <p>Кин ${yb.kin} · ${yb.yearStart.getDate()}.${String(yb.yearStart.getMonth() + 1).padStart(2, '0')}.${yb.yearStart.getFullYear()} — 24.07.${yb.yearStart.getFullYear() + 1}</p>
+    <div class="pp-props">▸ КИН: ${yb.kin}<br>▸ ПЕРИОД: ${yb.yearStart.getDate()}.${String(yb.yearStart.getMonth() + 1).padStart(2, '0')}.${yb.yearStart.getFullYear()} — 24.07.${yb.yearStart.getFullYear() + 1}</div>
   </div>`;
 }
 
@@ -532,27 +515,18 @@ function renderWave(kin, tone) {
 
   let html = `<div class="kin-card">
     <h3 class="card-title"><span class="dot"></span> ВОЛНА ${wave} — ${sealImg(waveSeal, 22)} ${wsi.name_ru}</h3>
-    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
-      <p>▸ СИЛА: ${wsi.power_ru}</p>
-      <p>▸ ДЕЙСТВИЕ: ${wsi.action_ru}</p>
-      <p>▸ СЕГОДНЯ ДЕНЬ ${pos} ИЗ 13</p>
-    </div>
-    <p>Волна — 13-дневный цикл с единой темой. Всего 20 волн.</p>
+    <p class="section-intro">Волна — 13-дневный цикл с единой темой. Всего 20 волн.</p>
+    <div class="pp-props">▸ СИЛА: ${wsi.power_ru}<br>▸ ДЕЙСТВИЕ: ${wsi.action_ru}<br>▸ СЕГОДНЯ ДЕНЬ ${pos} ИЗ 13</div>
   </div>
   <div class="detail-section">
     <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}</h3>
-    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
-      <p>▸ ${CASTLE_HINTS[cast].replace(' — ', '</p><p>▸ ')}</p>
-      <p>▸ ЗАМОК ${cast} ИЗ 5 · ВОЛНЫ ${(cast - 1) * 4 + 1}–${cast * 4}</p>
-    </div>
-    <p>Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
+    <p class="section-intro">Замок — 52-дневный цикл из 4 волн. Всего 5 замков.</p>
+    <div class="pp-props">▸ ${CASTLE_HINTS[cast].replace(' — ', '<br>▸ ')}<br>▸ ЗАМОК ${cast} ИЗ 5 · ВОЛНЫ ${(cast - 1) * 4 + 1}–${cast * 4}</div>
   </div>
   <div class="detail-section">
     <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПУЛЬСАР: ${p.name}</h3>
-    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
-      <p>▸ ${p.hint}</p>
-    </div>
-    <p>Пульсар — ритм внутри волны: какое измерение активно сегодня.</p>
+    <p class="section-intro">Пульсар — ритм внутри волны: какое измерение активно сегодня.</p>
+    <p class="pp-main">${p.hint}</p>
   </div>`;
 
   // 13 kins of wave
@@ -620,12 +594,15 @@ function updateCyclesActive() {
   if (infoCard) {
     infoCard.innerHTML = `
     <div class="row">
-      <div class="c-${color}" style="width:80px;height:80px;flex-shrink:0;display:grid;place-items:center">
-        ${sealImg(seal, 72, true)}
+      <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center">
+        <div style="margin-bottom:4px">${toneImg(tone, 28)}</div>
+        <div class="seal-badge ${color}" style="width:80px;height:80px">
+          ${sealImg(seal, 68, true)}
+        </div>
       </div>
       <div style="flex:1;min-width:0">
         <div class="eyebrow">КИН · ${kin} / 260</div>
-        <div class="kin-num c-${color}" style="font-size:44px;margin-top:2px">${kin}</div>
+        <div class="kin-num c-${color}" style="font-size:44px;margin-top:0;cursor:pointer" data-action="cycles-kin-popup">${kin}</div>
         <div class="display" style="font-size:10px;margin-top:6px;opacity:0.85">
           ЗАМОК ${castIdx + 1} · ВОЛНА ${waveInCastle + 1} · ТОН ${tone}
         </div>
@@ -745,12 +722,14 @@ function renderCycles(kin) {
   // Info card
   html += `<div class="cycle-info-card">
     <div class="row">
-      <div class="seal-badge ${color}" style="width:80px;height:80px;flex-shrink:0">
-        ${sealImg(seal, 68, true)}
+      <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center">
+        <div style="margin-bottom:4px">${toneImg(tone, 28)}</div>
+        <div class="seal-badge ${color}" style="width:80px;height:80px">
+          ${sealImg(seal, 68, true)}
+        </div>
       </div>
       <div style="flex:1;min-width:0">
         <div class="eyebrow">КИН · ${kin} / 260</div>
-        <div style="margin-top:4px">${toneImg(tone, 28)}</div>
         <div class="kin-num c-${color}" style="font-size:44px;margin-top:0;cursor:pointer" data-action="cycles-kin-popup">${kin}</div>
         <div class="display" style="font-size:10px;margin-top:4px;opacity:0.85">
           ЗАМОК ${castNum} · ВОЛНА ${waveInCastle + 1} · ТОН ${tone} · ${info?.title || ''}
@@ -809,7 +788,7 @@ function renderTzolkin(currentKin) {
   html += `<div class="tzolkin-grid-wrapper"><div class="tzolkin-grid">`;
 
   for (let seal = 1; seal <= 20; seal++) {
-    html += `<div class="tzolkin-row-header">${sealImg(seal, 18)}</div>`;
+    html += `<div class="tzolkin-row-header">${sealImg(seal, 28)}</div>`;
     for (let col = 0; col < 13; col++) {
       const k = seal + col * 20;
       const tone = (k - 1) % 13 + 1;
@@ -832,22 +811,21 @@ function renderTzolkin(currentKin) {
   return html;
 }
 
-/* ── Personal kin modal ── */
-function renderMyKinContent() {
-  const modal = document.getElementById('my-kin-content');
+/* ── Tab: Personal (Мой Кин) ── */
+function renderPersonal() {
   const birthDateStr = localStorage.getItem('birthDate');
 
   if (!birthDateStr) {
     const todayStr = new Date().toISOString().slice(0, 10);
-    modal.innerHTML = `
+    return `<div class="kin-card">
       <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> МОЙ КИН СУДЬБЫ</h3>
       <p style="color:var(--ink-faint);margin-bottom:12px;font-size:13px;line-height:1.5">Укажите дату рождения, чтобы узнать свой Кин Судьбы и связь с текущим днём.</p>
       <div class="birth-input-group">
         <input type="date" id="birth-date-input" value="1990-01-01" min="1900-01-01" max="${todayStr}">
         <button id="birth-save-btn">OK</button>
       </div>
-      <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;text-align:center">Или введите текстом: <input type="text" id="birth-text-input" placeholder="26.07.1990" style="background:rgba(255,255,255,0.06);border:1px solid var(--hairline-2);border-radius:8px;color:var(--ink);padding:4px 8px;font-family:var(--font-mono);font-size:12px;width:100px;text-align:center"></p>`;
-    return;
+      <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;text-align:center">Или введите текстом: <input type="text" id="birth-text-input" placeholder="26.07.1990" style="background:rgba(255,255,255,0.06);border:1px solid var(--hairline-2);border-radius:8px;color:var(--ink);padding:4px 8px;font-family:var(--font-mono);font-size:12px;width:100px;text-align:center"></p>
+    </div>`;
   }
 
   const [y, m, d] = birthDateStr.split('-').map(Number);
@@ -916,13 +894,13 @@ function renderMyKinContent() {
     safety++;
   }
 
-  modal.innerHTML = `
+  return `<div class="kin-card">
     <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> МОЙ КИН</h3>
     <div style="text-align:center;margin-bottom:14px">
+      <div style="margin-bottom:6px">${toneImg(bTone, 32)}</div>
       <div class="seal-badge ${bColor} c-${bColor}" style="width:80px;height:80px;margin:0 auto 8px">
         ${sealImg(bSeal, 68, true)}
       </div>
-      <div style="margin-bottom:4px">${toneImg(bTone, 32)}</div>
       <div class="kin-num c-${bColor}" style="font-size:36px">${bKin}${bGap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
       <div class="display" style="font-size:14px;margin-top:6px">${bInfo?.title || ''}</div>
       <div class="eyebrow muted" style="margin-top:4px">${formatDateRu(birthD).toUpperCase()}</div>
@@ -945,15 +923,17 @@ function renderMyKinContent() {
         <div class="display" style="font-size:11px;margin-top:4px">${CASTLE_NAMES[bCastle]?.split(' ')[0] || bCastle}</div>
       </div>
     </div>
+  </div>
+  <div class="kin-card">
     <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> КРЕСТ СУДЬБЫ</h3>
     <p class="section-intro" style="margin-bottom:8px">Четыре энергии вашего Кина. Нажмите на элемент для подробностей.</p>
     <div class="oracle-cross" style="margin:0 0 14px;gap:6px">
       ${(() => {
         function mcell(k, role, area) {
-          const { seal: s } = kinToToneSeal(k);
+          const { tone: t, seal: s } = kinToToneSeal(k);
           const c = sealColor(s);
           const isBig = area === 'main';
-          return '<div class="oracle-cell c-' + c + (isBig ? ' main' : '') + '" style="grid-area:' + area + ';padding:8px 2px" data-popup-kin="' + k + '" data-popup-area="' + area + '"><div class="role">' + role + '</div><div class="seal-icon">' + sealImg(s, isBig ? 36 : 24, true) + '</div><div class="kin-num-cell" style="font-size:' + (isBig ? 15 : 12) + 'px">' + k + '</div></div>';
+          return '<div class="oracle-cell c-' + c + (isBig ? ' main' : '') + '" style="grid-area:' + area + ';padding:8px 2px" data-popup-kin="' + k + '" data-popup-area="' + area + '"><div class="role">' + role + '</div><div style="margin:2px 0">' + toneImg(t, isBig ? 16 : 12) + '</div><div class="seal-icon">' + sealImg(s, isBig ? 36 : 24, true) + '</div><div class="kin-num-cell" style="font-size:' + (isBig ? 15 : 12) + 'px">' + k + '</div></div>';
         }
         return mcell(bOracle.guide, 'УПРАВИТЕЛЬ', 'guide')
           + mcell(bOracle.antipode, 'АНТИПОД', 'anti')
@@ -962,6 +942,8 @@ function renderMyKinContent() {
           + mcell(bOracle.hidden, 'ОККУЛЬТНЫЙ', 'hidden');
       })()}
     </div>
+  </div>
+  <div class="kin-card">
     <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span> СВЯЗЬ С ТЕКУЩИМ ДНЁМ</h3>
     <div class="connection-list">
       ${connections.map(c => `<div class="connection-item"><span class="connection-icon">${c.icon}</span><span class="connection-text">${c.text}</span></div>`).join('')}
@@ -970,77 +952,11 @@ function renderMyKinContent() {
       <span class="eyebrow">СЛЕДУЮЩИЙ ВАШ КИН</span>
       <span class="display" style="font-size:12px">${formatDateRu(nextDate).toUpperCase()}</span>
     </div>
-    <button class="birth-clear-btn" id="birth-clear-btn">СБРОСИТЬ ДАТУ РОЖДЕНИЯ</button>
-    <br>
-    <button class="modal-close" id="my-kin-close">✕ ЗАКРЫТЬ</button>`;
-}
-
-function showMyKinModal() {
-  const modal = document.getElementById('my-kin-modal');
-  modal.style.display = 'flex';
-  renderMyKinContent();
-
-  // Defer event binding
-  setTimeout(() => {
-    const saveBtn = document.getElementById('birth-save-btn');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
-        const dateInput = document.getElementById('birth-date-input');
-        const textInput = document.getElementById('birth-text-input');
-        let dateVal = dateInput?.value;
-
-        // Try text input if date input is empty or text input has content
-        if ((!dateVal || dateVal === '1990-01-01') && textInput?.value.trim()) {
-          // Parse text like "26.07.1990", "26/07/1990", "1990-07-26"
-          const raw = textInput.value.trim().replace(/\//g, '.').replace(/-/g, '.');
-          const parts = raw.split('.');
-          if (parts.length === 3) {
-            let [a, b, c] = parts.map(Number);
-            // Determine if format is DD.MM.YYYY or YYYY.MM.DD
-            const iso = c > 100 ? `${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`
-                                : `${a}-${String(b).padStart(2,'0')}-${String(c).padStart(2,'0')}`;
-            const parsed = new Date(iso);
-            if (!isNaN(parsed.getTime())) dateVal = iso;
-          }
-        } else if (!dateVal && !textInput?.value.trim()) {
-          dateVal = null;
-        }
-
-        if (dateVal) {
-          localStorage.setItem('birthDate', dateVal);
-          haptic('medium');
-          renderMyKinContent();
-          setTimeout(() => bindMyKinEvents(), 0);
-        }
-      });
-    }
-    bindMyKinEvents();
-  }, 0);
-}
-
-function bindMyKinEvents() {
-  const closeBtn = document.getElementById('my-kin-close');
-  if (closeBtn) {
-    closeBtn.addEventListener('click', closeMyKinModal);
-  }
-  const clearBtn = document.getElementById('birth-clear-btn');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      localStorage.removeItem('birthDate');
-      renderMyKinContent();
-      setTimeout(() => bindMyKinEvents(), 0);
-    });
-  }
-  // Destiny cross popup handlers
-  const roleMap = { guide: 0, anti: 1, analog: 2, hidden: 3 };
-  document.querySelectorAll('#my-kin-content [data-popup-kin]').forEach(el => {
-    el.addEventListener('click', () => {
-      const area = el.dataset.popupArea;
-      if (area === 'main') return;
-      const targetKin = +el.dataset.popupKin;
-      showKinPopup(targetKin, ORACLE_ROLES[roleMap[area]]);
-    });
-  });
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <button class="birth-nav-btn" id="personal-goto-kin" style="flex:1;padding:12px;border:1px solid var(--hairline);border-radius:12px;background:rgba(120,60,220,0.15);color:var(--ink);font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;cursor:pointer">◉ ПОДРОБНЕЕ О КИНЕ ${bKin}</button>
+    <button class="birth-clear-btn" id="birth-clear-btn" style="padding:12px 16px;border:1px solid var(--hairline);border-radius:12px;background:rgba(255,255,255,0.03);color:var(--ink-faint);font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer">СБРОСИТЬ</button>
+  </div>`;
 }
 
 /* ── Classical Maya calendar (GMT-584283 correlation) ── */
@@ -1270,7 +1186,7 @@ function render() {
       requestAnimationFrame(positionCycleMarkers);
       break;
     case 'tzolkin': card.innerHTML = renderTzolkin(kin); break;
-    case 'personal': showMyKinModal(); card.innerHTML = ''; break;
+    case 'personal': card.innerHTML = renderPersonal(); break;
     case 'maya': card.innerHTML = renderMayaClassic(); break;
   }
 
@@ -1293,7 +1209,7 @@ function bindCardEvents(kin, tone, seal) {
     const p = pulsar(t);
     return {
       title: `ВОЛНА ${wave} — ${wsi.name_ru}`,
-      body: `<p class="pp-intro">Волновое заклинание (wavespell) — 13-дневный цикл с единой темой, начинающийся на Тоне 1 и завершающийся на Тоне 13. 20 таких волн составляют полный Цолькин. Концепция введена Хосе Аргуэльесом в системе Дримспелл (1987) на основе структуры 13-числового ряда Цолькина.</p>
+      body: `<p class="pp-intro">Волновое заклинание (wavespell) — 13-дневный цикл с единой темой. Энергетическая неделя</p>
       <div class="pp-props">▸ ВОЛНА: ${wave} ИЗ 20<br>▸ СИЛА ВОЛНЫ: ${wsi.power_ru}<br>▸ ДЕЙСТВИЕ: ${wsi.action_ru}<br>▸ ПОЗИЦИЯ: ДЕНЬ ${pos} ИЗ 13<br>▸ ПУЛЬСАР: ${p.name}</div>
       <p class="pp-main">${p.hint}</p>
       ${wsi.description_ru ? `<p class="pp-main" style="margin-top:10px">${wsi.description_ru}</p>` : ''}`
@@ -1305,7 +1221,7 @@ function bindCardEvents(kin, tone, seal) {
     const cast = castle(k);
     return {
       title: `ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}`,
-      body: `<p class="pp-intro">Замок — 52-дневный сверхцикл из 4 волн. Пять замков образуют полный Цолькин (260 дней). Концепция введена Хосе Аргуэльесом в системе Дримспелл (1987): пять замков связаны с пятью цветами — Красный, Белый, Синий, Жёлтый, Зелёный.</p>
+      body: `<p class="pp-intro">Замок — 52-дневный сверхцикл из 4 волн(недель). Пять замков образуют полный Цолькин (260 дней). Пять замков связаны с пятью цветами — Красный, Белый, Синий, Жёлтый, Зелёный.</p>
       <div class="pp-props">▸ ЗАМОК: ${cast} ИЗ 5<br>▸ ТЕМА: ${CASTLE_HINTS[cast]}<br>▸ ВОЛНЫ: ${(cast - 1) * 4 + 1}–${cast * 4}</div>
       <p class="pp-main">${CASTLE_DESCRIPTIONS[cast]}</p>`
     };
@@ -1497,6 +1413,68 @@ function bindCardEvents(kin, tone, seal) {
 
     strip.addEventListener('pointercancel', () => { dragUnit = 0; cellW = 0; });
   });
+
+  // Personal tab: save birth date
+  const saveBtn = document.getElementById('birth-save-btn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+      const dateInput = document.getElementById('birth-date-input');
+      const textInput = document.getElementById('birth-text-input');
+      let dateVal = dateInput?.value;
+      if ((!dateVal || dateVal === '1990-01-01') && textInput?.value.trim()) {
+        const raw = textInput.value.trim().replace(/\//g, '.').replace(/-/g, '.');
+        const parts = raw.split('.');
+        if (parts.length === 3) {
+          let [a, b, c] = parts.map(Number);
+          const iso = c > 100 ? `${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`
+                              : `${a}-${String(b).padStart(2,'0')}-${String(c).padStart(2,'0')}`;
+          const parsed = new Date(iso);
+          if (!isNaN(parsed.getTime())) dateVal = iso;
+        }
+      }
+      if (dateVal) {
+        localStorage.setItem('birthDate', dateVal);
+        haptic('medium');
+        render();
+      }
+    });
+  }
+
+  // Personal tab: clear birth date
+  const clearBtn = document.getElementById('birth-clear-btn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      localStorage.removeItem('birthDate');
+      render();
+    });
+  }
+
+  // Personal tab: go to kin in main view
+  const gotoBtn = document.getElementById('personal-goto-kin');
+  if (gotoBtn) {
+    gotoBtn.addEventListener('click', () => {
+      const bDateStr = localStorage.getItem('birthDate');
+      if (bDateStr) {
+        const [y, m, d] = bDateStr.split('-').map(Number);
+        const bKin = dreamspellKin(new Date(y, m - 1, d));
+        const d2 = dateForKin(bKin);
+        navigateToDate(d2);
+        switchTab('main');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  }
+
+  // Personal tab: oracle cross popup handlers
+  const roleMap = { guide: 0, anti: 1, analog: 2, hidden: 3 };
+  card.querySelectorAll('[data-popup-kin]').forEach(el => {
+    el.addEventListener('click', () => {
+      const area = el.dataset.popupArea;
+      if (area === 'main') return;
+      const targetKin = +el.dataset.popupKin;
+      showKinPopup(targetKin, ORACLE_ROLES[roleMap[area]]);
+    });
+  });
 }
 
 /* ── Settings modal ── */
@@ -1624,8 +1602,8 @@ function setupEvents() {
     btn.addEventListener('click', () => { haptic('selection'); switchTab(btn.dataset.tab); });
   });
 
-  // My Kin button
-  document.getElementById('my-kin-btn').addEventListener('click', showMyKinModal);
+  // My Kin button (header) → switch to personal tab
+  document.getElementById('my-kin-btn').addEventListener('click', () => switchTab('personal'));
 
   // Settings button
   document.getElementById('settings-btn').addEventListener('click', showSettingsModal);
@@ -1644,17 +1622,13 @@ function setupEvents() {
   });
   musicBtn.addEventListener('pointercancel', () => { clearTimeout(musicLongTimer); musicLongTimer = null; });
 
-  // Close modal/popup on overlay click or ESC
-  document.getElementById('my-kin-modal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('my-kin-modal')) closeMyKinModal();
-  });
+  // Close popup on overlay click or ESC
   document.getElementById('kin-popup').addEventListener('click', (e) => {
     if (e.target === document.getElementById('kin-popup')) closeKinPopup();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (document.getElementById('kin-popup').style.display !== 'none') closeKinPopup();
-    else if (document.getElementById('my-kin-modal').style.display !== 'none') closeMyKinModal();
     else if (document.getElementById('settings-modal').style.display !== 'none') closeSettingsModal();
   });
 
