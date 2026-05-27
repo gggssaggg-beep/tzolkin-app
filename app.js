@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '39';
+const APP_VER = '40';
 let sealsData, tonesData, kinsData, mayaData;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -337,7 +337,7 @@ function renderMain(kin, tone, seal) {
   const waveSeal = kinToToneSeal((wave - 1) * 13 + 1).seal;
   const gap = isGap(kin);
 
-  let html = '';
+  let html = `<p class="section-intro" style="text-align:center;margin:0 0 10px;border:none;padding:0">Кин дня — энергия сегодняшнего дня в 260-дневном цикле Цолькин. Печать определяет качество, Тон — способ действия.</p>`;
 
   if (isDayOutOfTime(currentDate))
     html += `<div class="doot-banner">⏳ ДЕНЬ ВНЕ ВРЕМЕНИ</div>`;
@@ -402,6 +402,7 @@ function renderMain(kin, tone, seal) {
       <span class="eyebrow c-cyan">▸ ДЕВИЗ ДНЯ</span>
       <span class="eyebrow muted">КИН · ${kin}</span>
     </div>
+    <p class="section-intro" style="border:none;padding:0;margin:0 0 8px">Аффирмация — ключевая фраза Кина, объединяющая Печать и Тон.</p>
     <div class="aff-body">`;
   for (const line of affLines) {
     html += `<div><span class="aff-prefix">&gt; </span><span class="aff-line">${line.trim()}</span></div>`;
@@ -412,7 +413,7 @@ function renderMain(kin, tone, seal) {
 
   const summary = info.summary || '';
   if (summary)
-    html += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> АРХЕТИП</h3><p>${summary}</p></div>`;
+    html += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> АРХЕТИП</h3><p class="section-intro">Обобщённый образ Кина — соединение Печати и Тона в единый смысл.</p><p class="pp-main">${summary}</p></div>`;
 
   return html;
 }
@@ -530,7 +531,7 @@ function renderWave(kin, tone) {
   </div>`;
 
   // 13 kins of wave
-  html += `<div class="kin-card"><h3 class="card-title"><span class="dot"></span> КИНЫ ВОЛНЫ</h3><div style="margin-top:8px">`;
+  html += `<div class="kin-card"><h3 class="card-title"><span class="dot"></span> КИНЫ ВОЛНЫ</h3><p class="section-intro">13 кинов текущей волны. Нажмите на кин, чтобы перейти к этому дню.</p><div style="margin-top:8px">`;
   for (let i = 0; i < 13; i++) {
     const wk = waveFirst + i;
     const { tone: wt, seal: ws } = kinToToneSeal(wk);
@@ -667,7 +668,7 @@ function renderCycles(kin) {
 
   html += `<div style="text-align:center;margin:8px 0 4px">
     <div class="eyebrow">ВЛОЖЕННЫЕ ЦИКЛЫ</div>
-    <div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:0.24em;margin-top:8px;text-transform:uppercase">← СВАЙПНИ ЛЮБУЮ ПОЛОСУ →</div>
+    <p class="section-intro" style="text-align:center;border:none;padding:0;margin:6px 0 0">260 дней Цолькина делятся на замки, волны и тоны. Свайпайте полоски, чтобы перемещаться по циклам.</p>
   </div>`;
 
   // Castle strip (5 cells)
@@ -782,7 +783,8 @@ function renderTzolkin(currentKin) {
       <span title="Galactic Activation Portal — день усиленной галактической энергии. 52 дня из 260."><span class="legend-swatch" style="background:oklch(0.55 0.14 155)"></span>ГАП <span class="legend-hint">ⓘ</span></span>
       <span title="Мистическая колонка — 7-й столбец Цолькина (тон 7). 20 дней зеркальной симметрии."><span class="legend-swatch" style="background:rgba(120,100,160,0.4)"></span>Мист. <span class="legend-hint">ⓘ</span></span>
     </div>
-    <p class="section-intro" style="margin-top:8px">ГАП (Galactic Activation Portal) — 52 дня усиленной галактической энергии. Мист. — Мистическая колонка, 7-й столбец Цолькина: 20 дней зеркальной симметрии.</p>
+    <p class="section-intro" style="margin-top:8px">Полная таблица 260 кинов. 20 строк — печати (слева), 13 столбцов — тоны. Нажмите на ячейку, чтобы перейти к этому дню.</p>
+    <p class="section-intro" style="margin-top:4px;border:none;padding:0">ГАП — 52 дня усиленной энергии. Мист. — мистическая колонка (7-й столбец): 20 дней зеркальной симметрии.</p>
   </div>`;
 
   html += `<div class="tzolkin-grid-wrapper"><div class="tzolkin-grid">`;
@@ -819,7 +821,7 @@ function renderPersonal() {
     const todayStr = new Date().toISOString().slice(0, 10);
     return `<div class="kin-card">
       <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> МОЙ КИН СУДЬБЫ</h3>
-      <p style="color:var(--ink-faint);margin-bottom:12px;font-size:13px;line-height:1.5">Укажите дату рождения, чтобы узнать свой Кин Судьбы и связь с текущим днём.</p>
+      <p style="color:var(--ink-faint);margin-bottom:12px;font-size:13px;line-height:1.5">У каждого человека есть свой Кин Судьбы — энергия дня рождения в цикле Цолькин. Он определяет вашу печать, тон и крест судьбы. Укажите дату рождения.</p>
       <div class="birth-input-group">
         <input type="date" id="birth-date-input" value="1990-01-01" min="1900-01-01" max="${todayStr}">
         <button id="birth-save-btn">OK</button>
@@ -1011,6 +1013,7 @@ function renderMayaClassic() {
   // ── Main card ──
   html += `<div class="kin-card">
     <div class="eyebrow" style="text-align:center;margin-bottom:10px;letter-spacing:0.18em">КЛАССИЧЕСКИЙ МАЙЯ · GMT 584283</div>
+    <p class="section-intro" style="text-align:center;border:none;padding:0;margin:0 0 10px">Живой счёт К'иче'-майя Гватемалы. Непрерывная традиция, сохранённая с доколумбовых времён.</p>
     <div style="text-align:center;margin-bottom:6px">${mayaDots(md.tzolkinNum)}</div>
     <div style="text-align:center;margin-bottom:4px">${toneImg(md.tzolkinNum, 36)}</div>
     <div class="kin-number c-${color}" style="font-size:52px;text-align:center;margin-bottom:4px">${md.tzolkinNum}</div>
