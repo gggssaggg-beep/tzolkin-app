@@ -4,8 +4,8 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '43';
-let sealsData, tonesData, kinsData, mayaData;
+const APP_VER = '44';
+let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
 
@@ -243,11 +243,12 @@ function toggleMusic() {
 
 /* ── Data loading ── */
 async function loadData() {
-  const [s, t, k, m] = await Promise.all([
+  const [s, t, k, m, dt] = await Promise.all([
     fetch('data/seals.json').then(r => r.json()),
     fetch('data/tones.json').then(r => r.json()),
     fetch('data/kin_descriptions.json').then(r => r.json()),
     fetch('data/maya_classic.json').then(r => r.json()),
+    fetch('data/dreamspell_texts.json').then(r => r.json()),
   ]);
   sealsData = {};
   for (const [id, val] of Object.entries(s.seals)) sealsData[+id] = val;
@@ -255,6 +256,7 @@ async function loadData() {
   for (const [id, val] of Object.entries(t.tones)) tonesData[+id] = val;
   kinsData = k.kins;
   mayaData = m;
+  dsTexts = dt;
 }
 
 /* ── Share card generator ── */
@@ -545,14 +547,30 @@ function renderMain(kin, tone, seal) {
   </div>`;
 
   // Tone detail block
+  const tp = dsTexts?.tone_profiles?.[String(tone)];
   html += `<div class="detail-section">
     <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>
       ТОН ${tone} — ${toneImg(tone, 20)} ${toneInfo.name_ru}</h3>
     <p class="section-intro">Числовой импульс от 1 до 13. Задаёт ритм и способ действия Кина.</p>
     <div class="pp-props">${[toneInfo.function_ru ? `▸ ФУНКЦИЯ: ${toneInfo.function_ru}` : '', toneInfo.creative_power_ru ? `▸ ТВОРЧЕСКАЯ СИЛА: ${toneInfo.creative_power_ru}` : '', toneInfo.action_ru ? `▸ ДЕЙСТВИЕ: ${toneInfo.action_ru}` : ''].filter(Boolean).join('<br>')}</div>
     ${toneInfo.description_ru ? `<p class="pp-main">${toneInfo.description_ru}</p>` : ''}
+    ${tp?.wave_role ? `<p class="pp-main" style="margin-top:10px"><b>Роль в Волне:</b> ${tp.wave_role}</p>` : ''}
+    ${tp?.character ? `<p class="pp-main" style="margin-top:10px"><b>Характер Тона:</b> ${tp.character}</p>` : ''}
     ${toneInfo.question_ru ? `<div class="question-block" style="margin-top:12px"><div class="q">❓ ${toneInfo.question_ru}</div></div>` : ''}
   </div>`;
+
+  // Earth Family block
+  const ef = dsTexts?.earth_families?.families?.find(f => f.seal_ids.includes(seal));
+  if (ef) {
+    html += `<div class="detail-section">
+      <h3><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>
+        ЗЕМНАЯ СЕМЬЯ — ${ef.name.toUpperCase()}</h3>
+      <p class="section-intro">${dsTexts.earth_families.intro.split('.').slice(0, 2).join('.') + '.'}</p>
+      <div class="pp-props">▸ СЕМЬЯ: ${ef.name}<br>▸ ЧАКРА: ${ef.chakra}<br>▸ ФУНКЦИЯ: ${ef.function}<br>▸ ПЕЧАТИ: ${ef.seals.join(', ')}</div>
+      <p class="pp-main">${ef.description}</p>
+      <p class="pp-main" style="margin-top:10px"><b>Люди этой семьи:</b> ${ef.people}</p>
+    </div>`;
+  }
 
   // Affirmation with bracket frame
   const affLines = (info.affirmation || '').split('\n').filter(l => l.trim());
@@ -683,20 +701,27 @@ function renderWave(kin, tone) {
   const pos = (kin - 1) % 13 + 1;
   const p = pulsar(tone);
 
+  const ws = dsTexts?.wavespell;
+  const cd = dsTexts?.castles?.list?.find(c => c.id === cast);
+  const pulsarData = dsTexts?.pulsars?.list?.find(pl => pl.tones.includes(tone));
+
   let html = `<div class="kin-card">
     <h3 class="card-title"><span class="dot"></span> ВОЛНА ${wave} — ${sealImg(waveSeal, 22)} ${wsi.name_ru}</h3>
-    <p class="section-intro">Волна — 13-дневный цикл с единой темой. Всего 20 волн.</p>
+    <p class="section-intro">${ws?.intro || 'Волна — 13-дневный цикл с единой темой. Всего 20 волн.'}</p>
     <div class="pp-props">▸ СИЛА: ${wsi.power_ru}<br>▸ ДЕЙСТВИЕ: ${wsi.action_ru}<br>▸ СЕГОДНЯ ДЕНЬ ${pos} ИЗ 13</div>
+    ${ws?.structure ? `<p class="pp-main">${ws.structure}</p>` : ''}
   </div>
   <div class="detail-section">
     <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}</h3>
-    <p class="section-intro">Замок — 52-дневный цикл из 4 волн. Всего 5 замков.</p>
-    <div class="pp-props">▸ ${CASTLE_HINTS[cast].replace(' — ', '<br>▸ ')}<br>▸ ЗАМОК ${cast} ИЗ 5 · ВОЛНЫ ${(cast - 1) * 4 + 1}–${cast * 4}</div>
+    <p class="section-intro">${dsTexts?.castles?.mechanic || 'Замок — 52-дневный цикл из 4 волн. Всего 5 замков.'}</p>
+    <div class="pp-props">▸ ФУНКЦИЯ: ${cd?.function || CASTLE_HINTS[cast]}<br>▸ КИНЫ: ${cd?.kins || ''}<br>▸ ЗАМОК ${cast} ИЗ 5 · ВОЛНЫ ${(cast - 1) * 4 + 1}–${cast * 4}</div>
+    ${cd?.description ? `<p class="pp-main">${cd.description}</p>` : ''}
+    ${cd?.metaphor ? `<p class="pp-main" style="margin-top:10px;font-style:italic">${cd.metaphor}</p>` : ''}
   </div>
   <div class="detail-section">
-    <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПУЛЬСАР: ${p.name}</h3>
-    <p class="section-intro">Пульсар — ритм внутри волны: какое измерение активно сегодня.</p>
-    <p class="pp-main">${p.hint}</p>
+    <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПУЛЬСАР: ${p.name}${pulsarData ? ` (${pulsarData.dimension})` : ''}</h3>
+    <p class="section-intro">${dsTexts?.pulsars?.intro || 'Пульсар — ритм внутри волны: какое измерение активно сегодня.'}</p>
+    <p class="pp-main">${pulsarData?.description || p.hint}</p>
   </div>`;
 
   // 13 kins of wave
@@ -1459,23 +1484,29 @@ function bindCardEvents(kin, tone, seal) {
     const wsi = sealsData[waveSeal];
     const pos = (k - 1) % 13 + 1;
     const p = pulsar(t);
+    const ws = dsTexts?.wavespell;
+    const pulsarData = dsTexts?.pulsars?.list?.find(pl => pl.tones.includes(t));
     return {
       title: `ВОЛНА ${wave} — ${wsi.name_ru}`,
-      body: `<p class="pp-intro">Волновое заклинание (wavespell) — 13-дневный цикл с единой темой. Энергетическая неделя</p>
-      <div class="pp-props">▸ ВОЛНА: ${wave} ИЗ 20<br>▸ СИЛА ВОЛНЫ: ${wsi.power_ru}<br>▸ ДЕЙСТВИЕ: ${wsi.action_ru}<br>▸ ПОЗИЦИЯ: ДЕНЬ ${pos} ИЗ 13<br>▸ ПУЛЬСАР: ${p.name}</div>
+      body: `<p class="pp-intro">${ws?.intro || 'Волновое заклинание — 13-дневный цикл с единой темой.'}</p>
+      <div class="pp-props">▸ ВОЛНА: ${wave} ИЗ 20<br>▸ СИЛА ВОЛНЫ: ${wsi.power_ru}<br>▸ ДЕЙСТВИЕ: ${wsi.action_ru}<br>▸ ПОЗИЦИЯ: ДЕНЬ ${pos} ИЗ 13<br>▸ ПУЛЬСАР: ${p.name}${pulsarData ? ` (${pulsarData.dimension})` : ''}</div>
       <p class="pp-main">${p.hint}</p>
-      ${wsi.description_ru ? `<p class="pp-main" style="margin-top:10px">${wsi.description_ru}</p>` : ''}`
+      ${pulsarData ? `<p class="pp-main" style="margin-top:10px">${pulsarData.description}</p>` : ''}
+      ${wsi.description_ru ? `<p class="pp-main" style="margin-top:10px">${wsi.description_ru}</p>` : ''}
+      ${ws?.metaphor ? `<p class="pp-main" style="margin-top:10px;font-style:italic">${ws.metaphor}</p>` : ''}`
     };
   }
 
   // Shared: build castle popup content for a given kin
   function _castlePopupHtml(k) {
     const cast = castle(k);
+    const cd = dsTexts?.castles?.list?.find(c => c.id === cast);
     return {
       title: `ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}`,
-      body: `<p class="pp-intro">Замок — 52-дневный сверхцикл из 4 волн(недель). Пять замков образуют полный Цолькин (260 дней). Пять замков связаны с пятью цветами — Красный, Белый, Синий, Жёлтый, Зелёный.</p>
-      <div class="pp-props">▸ ЗАМОК: ${cast} ИЗ 5<br>▸ ТЕМА: ${CASTLE_HINTS[cast]}<br>▸ ВОЛНЫ: ${(cast - 1) * 4 + 1}–${cast * 4}</div>
-      <p class="pp-main">${CASTLE_DESCRIPTIONS[cast]}</p>`
+      body: `<p class="pp-intro">${dsTexts?.castles?.intro || 'Замок — 52-дневный сверхцикл из 4 волн.'}</p>
+      <div class="pp-props">▸ ЗАМОК: ${cast} ИЗ 5<br>▸ ФУНКЦИЯ: ${cd?.function || CASTLE_HINTS[cast]}<br>▸ КИНЫ: ${cd?.kins || ''}<br>▸ ВОЛНЫ: ${(cast - 1) * 4 + 1}–${cast * 4}</div>
+      <p class="pp-main">${cd?.description || CASTLE_DESCRIPTIONS[cast]}</p>
+      ${cd?.metaphor ? `<p class="pp-main" style="margin-top:10px;font-style:italic">${cd.metaphor}</p>` : ''}`
     };
   }
 
