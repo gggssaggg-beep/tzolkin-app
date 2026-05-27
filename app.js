@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '36';
+const APP_VER = '37';
 let sealsData, tonesData, kinsData, mayaData;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -27,6 +27,14 @@ const ORACLE_ROLES = [
 ];
 
 const CASTLE_SUB = ['ЗАЧАТИЕ','ОЧИЩЕНИЕ','ПЕРЕХОД','ДАРЕНИЕ','ПРОСВЕТЛЕНИЕ'];
+
+const CASTLE_DESCRIPTIONS = {
+  1: 'Красный Восточный Замок Поворота открывает новый Цолькин. Четыре красные волны сеют семена, ставят намерение и запускают импульс следующих 260 дней.',
+  2: 'Белый Северный Замок Перехода — пространство рафинирования. Четыре белые волны отделяют суть от шелухи, устраняют лишнее и проясняют путь.',
+  3: 'Синий Западный Замок Сжигания — пространство преобразования. Четыре синие волны углубляют и перерабатывают накопленный опыт через внутренний огонь.',
+  4: 'Жёлтый Южный Замок Дарения — пространство созревания. Четыре жёлтые волны приносят плоды, раскрывают мудрость и наполняют зрелостью.',
+  5: 'Зелёный Центральный Замок Очарования — место силы и синтеза. Четыре волны в самом центре Цолькина замыкают цикл и рождают галактическую синхронизацию.',
+};
 
 /* ── Neon color mapping: White→cyan, Yellow→amber ── */
 const NEON_MAP = { red:'red', white:'cyan', blue:'blue', yellow:'amber' };
@@ -1285,15 +1293,10 @@ function bindCardEvents(kin, tone, seal) {
     const p = pulsar(t);
     return {
       title: `ВОЛНА ${wave} — ${wsi.name_ru}`,
-      body: `<div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:2;color:var(--ink-dim)">
-        <p style="font-style:italic;text-transform:none;font-size:11px;color:var(--ink-faint);margin-bottom:8px">Волновое заклинание (wavespell) — 13-дневный цикл с единой темой, начинающийся на Тоне 1 и завершающийся на Тоне 13. 20 таких волн составляют полный Цолькин. Концепция введена Хосе Аргуэльесом в системе Дримспелл (1987) на основе структуры 13-числового ряда Цолькина.</p>
-        <p>▸ ВОЛНА: ${wave} ИЗ 20</p>
-        <p>▸ СИЛА ВОЛНЫ: ${wsi.power_ru}</p>
-        <p>▸ ДЕЙСТВИЕ: ${wsi.action_ru}</p>
-        <p>▸ ПОЗИЦИЯ: ДЕНЬ ${pos} ИЗ 13</p>
-        <p>▸ ПУЛЬСАР: ${p.name}</p>
-        <p style="font-size:11px;text-transform:none;color:var(--ink-faint);margin-top:6px">${p.hint}</p>
-      </div>`
+      body: `<p class="pp-intro">Волновое заклинание (wavespell) — 13-дневный цикл с единой темой, начинающийся на Тоне 1 и завершающийся на Тоне 13. 20 таких волн составляют полный Цолькин. Концепция введена Хосе Аргуэльесом в системе Дримспелл (1987) на основе структуры 13-числового ряда Цолькина.</p>
+      <div class="pp-props">▸ ВОЛНА: ${wave} ИЗ 20<br>▸ СИЛА ВОЛНЫ: ${wsi.power_ru}<br>▸ ДЕЙСТВИЕ: ${wsi.action_ru}<br>▸ ПОЗИЦИЯ: ДЕНЬ ${pos} ИЗ 13<br>▸ ПУЛЬСАР: ${p.name}</div>
+      <p class="pp-main">${p.hint}</p>
+      ${wsi.description_ru ? `<p class="pp-main" style="margin-top:10px">${wsi.description_ru}</p>` : ''}`
     };
   }
 
@@ -1302,12 +1305,9 @@ function bindCardEvents(kin, tone, seal) {
     const cast = castle(k);
     return {
       title: `ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}`,
-      body: `<div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:2;color:var(--ink-dim)">
-        <p style="font-style:italic;text-transform:none;font-size:11px;color:var(--ink-faint);margin-bottom:8px">Замок — 52-дневный сверхцикл из 4 волн. Пять замков образуют полный Цолькин (260 дней). Концепция введена Хосе Аргуэльесом в системе Дримспелл (1987): пять замков связаны с пятью цветами — Красный, Белый, Синий, Жёлтый, Зелёный.</p>
-        <p>▸ ЗАМОК ${cast} ИЗ 5</p>
-        <p>▸ ${CASTLE_HINTS[cast].replace(' — ', '</p><p>▸ ')}</p>
-        <p>▸ ВОЛНЫ: ${(cast - 1) * 4 + 1}–${cast * 4}</p>
-      </div>`
+      body: `<p class="pp-intro">Замок — 52-дневный сверхцикл из 4 волн. Пять замков образуют полный Цолькин (260 дней). Концепция введена Хосе Аргуэльесом в системе Дримспелл (1987): пять замков связаны с пятью цветами — Красный, Белый, Синий, Жёлтый, Зелёный.</p>
+      <div class="pp-props">▸ ЗАМОК: ${cast} ИЗ 5<br>▸ ТЕМА: ${CASTLE_HINTS[cast]}<br>▸ ВОЛНЫ: ${(cast - 1) * 4 + 1}–${cast * 4}</div>
+      <p class="pp-main">${CASTLE_DESCRIPTIONS[cast]}</p>`
     };
   }
 
@@ -1352,13 +1352,9 @@ function bindCardEvents(kin, tone, seal) {
       const wave = wavespell(k);
       const pos = (k - 1) % 13 + 1;
       showInfoPopup(`ТОН ${t} — ПУЛЬСАР ${p.name}`,
-        `<div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:2;color:var(--ink-dim)">
-          <p style="font-style:italic;text-transform:none;font-size:11px;color:var(--ink-faint);margin-bottom:8px">Пульсар — ритмическая группа тонов внутри волны, определяющая «измерение» активности: физическое, ментальное, эмоциональное или духовное. Четыре пульсара охватывают всю волну из 13 тонов.</p>
-          <p>▸ ТОН: ${t} ИЗ 13</p>
-          <p>▸ ПУЛЬСАР: ${p.name}</p>
-          <p style="font-size:11px;text-transform:none;color:var(--ink-faint);margin-top:4px">${p.hint}</p>
-          <p style="margin-top:8px">▸ ПОЗИЦИЯ В ВОЛНЕ: ДЕНЬ ${pos}</p>
-        </div>`);
+        `<p class="pp-intro">Пульсар — ритмическая группа тонов внутри волны, определяющая «измерение» активности: физическое, ментальное, эмоциональное или духовное. Четыре пульсара охватывают всю волну из 13 тонов.</p>
+        <div class="pp-props">▸ ТОН: ${t} ИЗ 13<br>▸ ПУЛЬСАР: ${p.name}<br>▸ ПОЗИЦИЯ В ВОЛНЕ: ДЕНЬ ${pos}<br>▸ ВОЛНА: ${wave}</div>
+        <p class="pp-main">${p.hint}</p>`);
     });
   });
 
@@ -1377,32 +1373,22 @@ function bindCardEvents(kin, tone, seal) {
       let title, body;
       if (type === 'luna') {
         title = `ЛУНА ${m.moonNumber} — ${m.moonName}`;
-        body = `<div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.06em;line-height:1.8;color:var(--ink-dim)">
-          <p class="section-intro" style="text-transform:none;font-family:var(--font-body)">13-лунный год: 13 лун по 28 дней. Год начинается 26 июля.</p>
-          <p style="margin-top:10px;text-transform:uppercase">▸ ЛУНА ${m.moonNumber} ИЗ 13</p>
-          <p style="text-transform:none;font-size:12px;color:var(--ink-faint);margin-top:4px">${m.moonName}</p>
-        </div>`;
+        body = `<p class="pp-intro">13-лунный год состоит из 13 лун по 28 дней. Каждая луна — полный 28-дневный цикл с именем. Год начинается 26 июля.</p>
+          <div class="pp-props">▸ ЛУНА: ${m.moonNumber} ИЗ 13</div>
+          <p class="pp-main">${m.moonName}</p>`;
       } else if (type === 'day') {
         title = `ДЕНЬ ${m.moonDay} ЛУННОГО МЕСЯЦА`;
-        body = `<div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.06em;line-height:1.8;color:var(--ink-dim)">
-          <p class="section-intro" style="text-transform:none;font-family:var(--font-body)">Каждая луна — 28 дней, 4 недели по 7 дней.</p>
-          <p style="margin-top:10px;text-transform:uppercase">▸ ДЕНЬ ${m.moonDay} ИЗ 28</p>
-          <p style="text-transform:uppercase">▸ НЕДЕЛЯ ${m.heptad} — ${m.heptadColor}</p>
-        </div>`;
+        body = `<p class="pp-intro">Каждая луна — 28 дней, разделённых на 4 недели-гептады по 7 дней.</p>
+          <div class="pp-props">▸ ДЕНЬ: ${m.moonDay} ИЗ 28<br>▸ НЕДЕЛЯ (ГЕПТАДА): ${m.heptad} ИЗ 4<br>▸ ЦВЕТ НЕДЕЛИ: ${m.heptadColor}</div>`;
       } else if (type === 'week') {
         title = `ГЕПТАДА ${m.heptad} — ${m.heptadColor}`;
-        body = `<div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.06em;line-height:1.8;color:var(--ink-dim)">
-          <p class="section-intro" style="text-transform:none;font-family:var(--font-body)">Гептада — 7-дневная неделя внутри луны. 4 гептады в каждой луне.</p>
-          <p style="margin-top:10px;text-transform:uppercase">▸ ГЕПТАДА ${m.heptad} ИЗ 4</p>
-          <p style="text-transform:uppercase">▸ ЦВЕТ НЕДЕЛИ: ${m.heptadColor}</p>
-        </div>`;
+        body = `<p class="pp-intro">Гептада — 7-дневная неделя внутри луны. В каждой луне 4 гептады. Цвет недели чередуется: Красный, Белый, Синий, Жёлтый.</p>
+          <div class="pp-props">▸ ГЕПТАДА: ${m.heptad} ИЗ 4<br>▸ ЦВЕТ НЕДЕЛИ: ${m.heptadColor}<br>▸ ЛУНА: ${m.moonNumber} ИЗ 13</div>`;
       } else if (type === 'plasma') {
         title = `ПЛАЗМА: ${m.plasma.name}`;
-        body = `<div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.06em;line-height:1.8;color:var(--ink-dim)">
-          <p class="section-intro" style="text-transform:none;font-family:var(--font-body)">Плазма — ежедневная энергетическая практика. 7 плазм чередуются каждую неделю.</p>
-          <p style="margin-top:10px;text-transform:uppercase">▸ ЧАКРА: ${m.plasma.chakra}</p>
-          <p style="text-transform:none;font-size:12px;color:var(--ink-faint);margin-top:6px">${m.plasma.hint}</p>
-        </div>`;
+        body = `<p class="pp-intro">Плазма — ежедневная радиально-плазматическая практика. 7 плазм чередуются каждую неделю-гептаду, активируя разные чакры.</p>
+          <div class="pp-props">▸ ПЛАЗМА: ${m.plasma.name}<br>▸ ЧАКРА: ${m.plasma.chakra}</div>
+          <p class="pp-main">${m.plasma.hint}</p>`;
       }
       if (title && body) showInfoPopup(title, body);
     });
@@ -1554,6 +1540,10 @@ function renderSettings() {
         <a href="https://t.me/U314159" style="color:var(--n-cyan);font-family:var(--font-mono);font-size:13px;text-decoration:none">💬 @U314159</a>
       </p>
       <p style="font-size:11px;color:var(--ink-faint);margin-top:6px">Вопросы, предложения, ошибки — пишите напрямую.</p>
+      <p style="margin-top:10px">
+        <a href="https://t.me/portalawekening" style="color:var(--n-violet);font-family:var(--font-mono);font-size:13px;text-decoration:none">♫ @portalawekening</a>
+      </p>
+      <p style="font-size:11px;color:var(--ink-faint);margin-top:4px">Фоновая музыка.</p>
     </div>
 
     <div class="detail-section">
@@ -1563,6 +1553,7 @@ function renderSettings() {
         <p>▸ ЦОЛЬКИН (ДРИМСПЕЛЛ): корреляция Аргуэльеса</p>
         <p>▸ КЛАССИЧЕСКИЙ МАЙЯ: GMT-584283 (Гудман–Томпсон)</p>
         <p>▸ ИСТОЧНИКИ: lawoftime.org, tortuga1320.com, Maya Decipherment (Стюарт)</p>
+        <p>▸ МУЗЫКА: <a href="https://t.me/portalawekening" style="color:var(--n-violet);text-decoration:none">@portalawekening</a></p>
       </div>
     </div>
 
