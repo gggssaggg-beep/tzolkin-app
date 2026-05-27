@@ -1379,6 +1379,68 @@ html, body {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Collapsible sections (PRO mode)
+   ───────────────────────────────────────────────────────────── */
+.collapsible-header {
+  cursor: pointer;
+  position: relative;
+  padding-left: 18px;
+}
+.collapsible-header::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--ink-faint);
+  transition: transform .2s;
+}
+.collapsible.open .collapsible-header::before {
+  transform: translateY(-50%) rotate(90deg);
+}
+.collapsible-body {
+  display: none;
+  margin-top: 10px;
+  animation: fadeIn .2s ease;
+}
+.collapsible.open .collapsible-body {
+  display: block;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Harmonic grouping in wave kin list
+   ───────────────────────────────────────────────────────────── */
+.wave-kin-row.harm-first {
+  border-top: 1px solid rgba(180,160,255,0.2);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  margin-top: 4px;
+}
+.wave-kin-row.harm-last {
+  border-bottom: 1px solid rgba(180,160,255,0.2);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  margin-bottom: 4px;
+}
+.wave-kin-row.harm-first,
+.wave-kin-row.harm-last,
+.wave-kin-row.harm-first ~ .wave-kin-row:not(.harm-first):not(.harm-last) {
+  border-left: 1px solid rgba(180,160,255,0.15);
+  border-right: 1px solid rgba(180,160,255,0.15);
+}
+.wave-kin-row.harm-open-top {
+  border-top: 1px dashed rgba(180,160,255,0.15);
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+.wave-kin-row.harm-open-bottom {
+  border-bottom: 1px dashed rgba(180,160,255,0.15);
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────
    Status badges (GAP, Gate, Harmonic)
    ───────────────────────────────────────────────────────────── */
 .status-badges {

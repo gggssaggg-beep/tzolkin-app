@@ -4,10 +4,12 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '47';
+const APP_VER = '48';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
+let displayMode = localStorage.getItem('displayMode') || 'base';
+function isPro() { return displayMode === 'pro'; }
 
 /* ── Cycles tab state ── */
 let cyclesKin = null; // lazy init on first render
@@ -30,7 +32,7 @@ const CASTLE_SUB = ['ЗАЧАТИЕ','ОЧИЩЕНИЕ','ПЕРЕХОД','ДАР
 
 const CASTLE_DESCRIPTIONS = {
   1: 'Красный Восточный Замок Поворота открывает новый Цолькин. Четыре красные волны сеют семена, ставят намерение и запускают импульс следующих 260 дней.',
-  2: 'Белый Северный Замок Перехода — пространство рафинирования. Четыре белые волны отделяют суть от шелухи, устраняют лишнее и проясняют путь.',
+  2: 'Белый Северный Замок Перехода — пространство утончения. Четыре белые волны отделяют суть от шелухи, устраняют лишнее и проясняют путь.',
   3: 'Синий Западный Замок Сжигания — пространство преобразования. Четыре синие волны углубляют и перерабатывают накопленный опыт через внутренний огонь.',
   4: 'Жёлтый Южный Замок Дарения — пространство созревания. Четыре жёлтые волны приносят плоды, раскрывают мудрость и наполняют зрелостью.',
   5: 'Зелёный Центральный Замок Очарования — место силы и синтеза. Четыре волны в самом центре Цолькина замыкают цикл и рождают галактическую синхронизацию.',
@@ -498,7 +500,7 @@ function renderMain(kin, tone, seal) {
   const waveSeal = kinToToneSeal((wave - 1) * 13 + 1).seal;
   const gap = isGap(kin);
 
-  let html = `<p class="section-intro" style="text-align:center;margin:0 0 10px;border:none;padding:0">Кин дня — энергия сегодняшнего дня в 260-дневном цикле Цолькин. Печать определяет качество, Тон — способ действия.</p>`;
+  let html = '';
 
   if (isDayOutOfTime(currentDate))
     html += `<div class="doot-banner">⏳ ДЕНЬ ВНЕ ВРЕМЕНИ</div>`;
@@ -533,55 +535,54 @@ function renderMain(kin, tone, seal) {
     </div>`;
 
   // Compact status badges
-  const harmonic = Math.ceil(kin / 4);
-  const harmonicPhase = dsTexts?.harmonics?.phases?.[(kin - 1) % 4] || '';
   const badges = [];
   if (gap) badges.push(`<span class="status-badge gap-bg" data-action="gap-info">ГАП</span>`);
-  if (tone === 1) badges.push(`<span class="status-badge gate-bg" data-action="gate-info">МАГНИТНЫЕ ВРАТА</span>`);
-  const spKins = dsTexts?.tzolkin_legend?.spectral_polar?.kins || [];
-  if (spKins.includes(kin)) badges.push(`<span class="status-badge sp-bg" data-action="sp-info">СПЕКТРАЛЬНЫЙ ПОЛЯРНЫЙ</span>`);
-  badges.push(`<span class="status-badge harm-bg" data-action="harm-info">ГАРМОНИКА ${harmonic} · ${harmonicPhase}</span>`);
-  html += `<div class="status-badges">${badges.join('')}</div>`;
+  if (isPro()) {
+    if (tone === 1) badges.push(`<span class="status-badge gate-bg" data-action="gate-info">МАГНИТНЫЕ ВРАТА</span>`);
+    const spKins = dsTexts?.tzolkin_legend?.spectral_polar?.kins || [];
+    if (spKins.includes(kin)) badges.push(`<span class="status-badge sp-bg" data-action="sp-info">СПЕКТРАЛЬНЫЙ ПОЛЯРНЫЙ</span>`);
+  }
+  if (badges.length) html += `<div class="status-badges">${badges.join('')}</div>`;
 
   html += `<button class="share-btn" data-action="share-kin">ПОДЕЛИТЬСЯ</button>
   </div>`;
 
-  // Seal detail block
-  html += `<div class="detail-section">
-    <h3><span class="dot" style="background:var(--n-${color});box-shadow:0 0 8px var(--n-${color})"></span>
-      ПЕЧАТЬ — ${sealImg(seal, 20)} ${sealInfo.name_ru} · ${sealInfo.name_maya}</h3>
-    <p class="section-intro">Один из 20 архетипов Цолькина. Суть, сила и направление действия.</p>
-    <div class="pp-props">▸ СУТЬ: ${sealInfo.essence_ru}<br>▸ СИЛА: ${sealInfo.power_ru}<br>▸ ДЕЙСТВИЕ: ${sealInfo.action_ru}${sealInfo.chakra_ru ? `<br>▸ ЧАКРА: ${sealInfo.chakra_ru}` : ''}${sealInfo.direction_action_ru ? `<br>▸ ${sealInfo.direction_action_ru}` : ''}${sealInfo.earth_family_action_ru ? `<br>▸ ${sealInfo.earth_family_action_ru}` : ''}</div>
-    ${sealInfo.keywords?.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
-      ${sealInfo.keywords.map(kw => `<span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;padding:3px 9px;border:1px solid var(--hairline-2);border-radius:20px;color:var(--ink-dim)">${kw}</span>`).join('')}
-    </div>` : ''}
-    ${sealInfo.description_ru ? `<p class="pp-main">${sealInfo.description_ru}</p>` : ''}
-  </div>`;
+  // Seal, Tone, Earth Family — PRO only (collapsible)
+  if (isPro()) {
+    const tp = dsTexts?.tone_profiles?.[String(tone)];
+    const ef = dsTexts?.earth_families?.families?.find(f => f.seal_ids.includes(seal));
 
-  // Tone detail block
-  const tp = dsTexts?.tone_profiles?.[String(tone)];
-  html += `<div class="detail-section">
-    <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>
-      ТОН ${tone} — ${toneImg(tone, 20)} ${toneInfo.name_ru}</h3>
-    <p class="section-intro">Числовой импульс от 1 до 13. Задаёт ритм и способ действия Кина.</p>
-    <div class="pp-props">${[toneInfo.function_ru ? `▸ ФУНКЦИЯ: ${toneInfo.function_ru}` : '', toneInfo.creative_power_ru ? `▸ ТВОРЧЕСКАЯ СИЛА: ${toneInfo.creative_power_ru}` : '', toneInfo.action_ru ? `▸ ДЕЙСТВИЕ: ${toneInfo.action_ru}` : ''].filter(Boolean).join('<br>')}</div>
-    ${toneInfo.description_ru ? `<p class="pp-main">${toneInfo.description_ru}</p>` : ''}
-    ${tp?.wave_role ? `<p class="pp-main" style="margin-top:10px"><b>Роль в Волне:</b> ${tp.wave_role}</p>` : ''}
-    ${tp?.character ? `<p class="pp-main" style="margin-top:10px"><b>Характер Тона:</b> ${tp.character}</p>` : ''}
-    ${toneInfo.question_ru ? `<div class="question-block" style="margin-top:12px"><div class="q">❓ ${toneInfo.question_ru}</div></div>` : ''}
-  </div>`;
-
-  // Earth Family block
-  const ef = dsTexts?.earth_families?.families?.find(f => f.seal_ids.includes(seal));
-  if (ef) {
-    html += `<div class="detail-section">
-      <h3><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>
-        ЗЕМНАЯ СЕМЬЯ — ${ef.name.toUpperCase()}</h3>
-      <p class="section-intro">${dsTexts.earth_families.intro.split('.').slice(0, 2).join('.') + '.'}</p>
-      <div class="pp-props">▸ СЕМЬЯ: ${ef.name}<br>▸ ЧАКРА: ${ef.chakra}<br>▸ ФУНКЦИЯ: ${ef.function}<br>▸ ПЕЧАТИ: ${ef.seals.join(', ')}</div>
-      <p class="pp-main">${ef.description}</p>
-      <p class="pp-main" style="margin-top:10px"><b>Люди этой семьи:</b> ${ef.people}</p>
+    html += `<div class="detail-section collapsible" data-collapse="seal">
+      <h3 class="collapsible-header"><span class="dot" style="background:var(--n-${color});box-shadow:0 0 8px var(--n-${color})"></span>
+        ПЕЧАТЬ — ${sealImg(seal, 20)} ${sealInfo.name_ru}</h3>
+      <div class="collapsible-body">
+        <div class="pp-props">▸ СУТЬ: ${sealInfo.essence_ru}<br>▸ СИЛА: ${sealInfo.power_ru}<br>▸ ДЕЙСТВИЕ: ${sealInfo.action_ru}${sealInfo.chakra_ru ? `<br>▸ ЧАКРА: ${sealInfo.chakra_ru}` : ''}</div>
+        ${sealInfo.description_ru ? `<p class="pp-main">${sealInfo.description_ru}</p>` : ''}
+      </div>
     </div>`;
+
+    html += `<div class="detail-section collapsible" data-collapse="tone">
+      <h3 class="collapsible-header"><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>
+        ТОН ${tone} — ${toneImg(tone, 20)} ${toneInfo.name_ru}</h3>
+      <div class="collapsible-body">
+        <div class="pp-props">${[toneInfo.function_ru ? `▸ ФУНКЦИЯ: ${toneInfo.function_ru}` : '', toneInfo.creative_power_ru ? `▸ ТВОРЧЕСКАЯ СИЛА: ${toneInfo.creative_power_ru}` : '', toneInfo.action_ru ? `▸ ДЕЙСТВИЕ: ${toneInfo.action_ru}` : ''].filter(Boolean).join('<br>')}</div>
+        ${toneInfo.description_ru ? `<p class="pp-main">${toneInfo.description_ru}</p>` : ''}
+        ${tp?.wave_role ? `<p class="pp-main" style="margin-top:10px"><b>Роль в Волне:</b> ${tp.wave_role}</p>` : ''}
+        ${tp?.character ? `<p class="pp-main" style="margin-top:10px"><b>Характер Тона:</b> ${tp.character}</p>` : ''}
+        ${toneInfo.question_ru ? `<div class="question-block" style="margin-top:12px"><div class="q">❓ ${toneInfo.question_ru}</div></div>` : ''}
+      </div>
+    </div>`;
+
+    if (ef) {
+      html += `<div class="detail-section collapsible" data-collapse="family">
+        <h3 class="collapsible-header"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>
+          ЗЕМНАЯ СЕМЬЯ — ${ef.name.toUpperCase()}</h3>
+        <div class="collapsible-body">
+          <div class="pp-props">▸ ЧАКРА: ${ef.chakra}<br>▸ ФУНКЦИЯ: ${ef.function}<br>▸ ПЕЧАТИ: ${ef.seals.join(', ')}</div>
+          <p class="pp-main">${ef.description}</p>
+        </div>
+      </div>`;
+    }
   }
 
   // Affirmation with bracket frame
@@ -602,17 +603,8 @@ function renderMain(kin, tone, seal) {
   </div>`;
 
   const summary = info.summary || '';
-  if (summary)
-    html += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> АРХЕТИП</h3><p class="section-intro">Обобщённый образ Кина — соединение Печати и Тона в единый смысл.</p><p class="pp-main">${summary}</p></div>`;
-
-  // Kin search
-  html += `<div class="kin-card kin-search-card">
-    <div class="eyebrow" style="margin-bottom:8px">ПЕРЕЙТИ К КИНУ</div>
-    <div class="kin-search-row">
-      <input type="number" id="kin-search-input" min="1" max="260" placeholder="1–260" class="kin-search-input">
-      <button id="kin-search-go" class="kin-search-go">→</button>
-    </div>
-  </div>`;
+  if (isPro() && summary)
+    html += `<div class="detail-section collapsible" data-collapse="archetype"><h3 class="collapsible-header"><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> АРХЕТИП</h3><div class="collapsible-body"><p class="pp-main">${summary}</p></div></div>`;
 
   return html;
 }
@@ -957,6 +949,48 @@ function renderCycles(kin) {
     </div>
   </div>`;
 
+  // Wave kins with harmonic grouping
+  const wave = wavespell(kin);
+  const waveFirst = (wave - 1) * 13 + 1;
+  const { seal: waveSeal } = kinToToneSeal(waveFirst);
+  const wsi = sealsData[waveSeal];
+  const p = pulsar(tone);
+  const pulsarData = dsTexts?.pulsars?.list?.find(pl => pl.tones.includes(tone));
+
+  html += `<div class="kin-card">
+    <h3 class="card-title"><span class="dot"></span> ВОЛНА ${wave} — ${sealImg(waveSeal, 22)} ${wsi.name_ru}</h3>
+    <div style="margin-top:8px">`;
+  for (let i = 0; i < 13; i++) {
+    const wk = waveFirst + i;
+    const { tone: wt, seal: ws } = kinToToneSeal(wk);
+    const isCurrent = wk === kin;
+    const wgap = isGap(wk);
+    const title = kinsData[String(wk)]?.title || '';
+    const harmIdx = (wk - 1) % 4;
+    const harmFirst = harmIdx === 0;
+    const harmLast = harmIdx === 3;
+    let rowCls = 'wave-kin-row';
+    if (isCurrent) rowCls += ' current';
+    if (harmFirst) rowCls += ' harm-first';
+    if (harmLast) rowCls += ' harm-last';
+    if (i === 0 && harmIdx > 0) rowCls += ' harm-open-top';
+    if (i === 12 && harmIdx < 3) rowCls += ' harm-open-bottom';
+    html += `<div class="${rowCls}" data-wave-kin="${wk}">
+      <span class="wave-kin-marker">${isCurrent ? '✦' : ''}</span>
+      <span class="wave-kin-img">${sealImg(ws, 28)}</span>
+      <span class="wave-kin-text">${title}${wgap ? '<span class="gap-badge">ГАП</span>' : ''}</span>
+      <span class="wave-kin-num">${wk}</span>
+    </div>`;
+  }
+  html += `</div></div>`;
+
+  // Pulsar info
+  html += `<div class="kin-card" style="padding:14px 10px">
+    <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> ПУЛЬСАР: ${p.name}</h3>
+    <p class="pp-main" style="font-size:12px">${pulsarData?.description || p.hint}</p>
+    <canvas id="pulsar-canvas" width="600" height="280" style="width:100%;border-radius:12px;cursor:pointer;margin-top:10px"></canvas>
+  </div>`;
+
   return html;
 }
 
@@ -995,10 +1029,9 @@ function renderTzolkin(currentKin) {
       <span><span class="legend-swatch" style="background:oklch(0.72 0.12 85)"></span>Жёлтый</span>
       <span title="${dsTexts?.gap_portals?.description || ''}"><span class="legend-swatch" style="background:oklch(0.55 0.14 155)"></span>ГАП <span class="legend-hint">ⓘ</span></span>
       <span title="Мистическая колонка — 7-й столбец Цолькина (тон 7). 20 дней зеркальной симметрии."><span class="legend-swatch" style="background:rgba(120,100,160,0.4)"></span>Мист. <span class="legend-hint">ⓘ</span></span>
-      <span title="${dsTexts?.tzolkin_legend?.magnetic_gates?.legend || ''}"><span class="legend-swatch" style="background:transparent;border:2px solid #fff;border-radius:2px"></span>Врата <span class="legend-hint">ⓘ</span></span>
-      <span title="${dsTexts?.tzolkin_legend?.spectral_polar?.legend || ''}"><span class="legend-swatch" style="background:transparent;border:2px solid var(--n-violet);border-radius:50%"></span>Спектр. <span class="legend-hint">ⓘ</span></span>
+      ${isPro() ? `<span title="${dsTexts?.tzolkin_legend?.magnetic_gates?.legend || ''}"><span class="legend-swatch" style="background:transparent;border:2px solid #fff;border-radius:2px"></span>Врата <span class="legend-hint">ⓘ</span></span>
+      <span title="${dsTexts?.tzolkin_legend?.spectral_polar?.legend || ''}"><span class="legend-swatch" style="background:transparent;border:2px solid var(--n-violet);border-radius:50%"></span>Спектр. <span class="legend-hint">ⓘ</span></span>` : ''}
     </div>
-    <p class="section-intro" style="margin-top:8px">Полная таблица 260 кинов. 20 строк — печати, 13 столбцов — тоны. Нажмите на ячейку для перехода.</p>
   </div>`;
 
   html += `<div class="tzolkin-grid-wrapper"><div class="tzolkin-grid">`;
@@ -1173,7 +1206,7 @@ function renderPersonal() {
       </div>
     </div>
   </div>
-  <div class="detail-section">
+  ${isPro() ? `<div class="detail-section">
     <h3><span class="dot" style="background:var(--n-${bColor});box-shadow:0 0 8px var(--n-${bColor})"></span>
       ПЕЧАТЬ — ${sealImg(bSeal, 20)} ${bSealInfo.name_ru}</h3>
     <div class="pp-props">▸ СУТЬ: ${bSealInfo.essence_ru}<br>▸ СИЛА: ${bSealInfo.power_ru}<br>▸ ДЕЙСТВИЕ: ${bSealInfo.action_ru}</div>
@@ -1184,7 +1217,7 @@ function renderPersonal() {
       ТОН ${bTone} — ${toneImg(bTone, 20)} ${bToneInfo.name_ru}</h3>
     <div class="pp-props">${[bToneInfo.function_ru ? `▸ ФУНКЦИЯ: ${bToneInfo.function_ru}` : '', bToneInfo.creative_power_ru ? `▸ ТВОРЧЕСКАЯ СИЛА: ${bToneInfo.creative_power_ru}` : '', bToneInfo.action_ru ? `▸ ДЕЙСТВИЕ: ${bToneInfo.action_ru}` : ''].filter(Boolean).join('<br>')}</div>
     ${bToneInfo.description_ru ? `<p class="pp-main">${bToneInfo.description_ru}</p>` : ''}
-  </div>
+  </div>` : ''}
   <div class="kin-card">
     <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> КРЕСТ СУДЬБЫ</h3>
     <p class="section-intro" style="margin-bottom:8px">Четыре энергии вашего Кина. Нажмите на элемент для подробностей.</p>
@@ -1203,12 +1236,12 @@ function renderPersonal() {
           + mcell(bOracle.hidden, 'ОККУЛЬТНЫЙ УЧИТЕЛЬ', 'hidden');
       })()}
     </div>
-    <div class="oracle-list">${(() => {
+    ${isPro() ? `<div class="oracle-list">${(() => {
       const roles = [
-        { key: 'guide', kin: bOracle.guide, name: 'Управитель', desc: 'Высшая направляющая сила. Определяет, откуда приходит вдохновение и интуиция.' },
-        { key: 'analog', kin: bOracle.analog, name: 'Аналог', desc: 'Союзник и поддержка. Энергия, которая дополняет и усиливает вашу природу.' },
-        { key: 'antipode', kin: bOracle.antipode, name: 'Антипод', desc: 'Вызов и рост. Противоположная сила, через принятие которой раскрывается мудрость.' },
-        { key: 'hidden', kin: bOracle.hidden, name: 'Оккультный учитель', desc: 'Скрытая сила. Неочевидный дар, который раскрывается через внутреннюю работу.' },
+        { key: 'guide', kin: bOracle.guide, name: 'Управитель', desc: 'Высшая направляющая сила.' },
+        { key: 'analog', kin: bOracle.analog, name: 'Аналог', desc: 'Союзник и поддержка.' },
+        { key: 'antipode', kin: bOracle.antipode, name: 'Антипод', desc: 'Вызов и рост.' },
+        { key: 'hidden', kin: bOracle.hidden, name: 'Оккультный учитель', desc: 'Скрытая сила.' },
       ];
       return roles.map(r => {
         const { seal: rs } = kinToToneSeal(r.kin);
@@ -1220,11 +1253,10 @@ function renderPersonal() {
           <div class="oracle-info">
             <div class="oracle-role">${r.name}</div>
             <div class="oracle-name">КИН ${r.kin} — ${rTitle}</div>
-            <div class="oracle-hint">${r.desc}</div>
             <div style="font-size:11px;color:var(--ink-faint);margin-top:2px">${rsi.essence_ru} · ${rsi.power_ru}</div>
           </div></div>`;
       }).join('');
-    })()}</div>
+    })()}</div>` : ''}
   </div>
   <div class="kin-card">
     <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span> СВЯЗЬ С ТЕКУЩИМ ДНЁМ</h3>
@@ -1309,6 +1341,8 @@ function renderMayaClassic() {
       <p>▸ КРУГ КАЛЕНДАРЯ: ${md.tzolkinNum} ${signData.name_yucatec} ${md.dayInMonth} ${monthData.name}</p>
     </div>
   </div>`;
+
+  if (!isPro()) return html;
 
   // ── Sign block ──
   html += `<div class="detail-section">
@@ -1591,7 +1625,6 @@ function render() {
     case 'main':
       card.innerHTML = renderMain(kin, tone, seal)
         + renderOracle(kin)
-        + renderWave(kin, tone)
         + renderMoon();
       break;
     case 'cycles':
@@ -1607,15 +1640,30 @@ function render() {
   // Bind dynamic events after render
   bindCardEvents(kin, tone, seal);
 
-  // Draw pulsar canvas (wave tab)
-  if (currentTab === 'main') {
-    requestAnimationFrame(() => drawPulsarCanvas(tone));
+  // Draw pulsar canvas (cycles tab)
+  if (currentTab === 'cycles') {
+    const ct = cyclesKin ? kinToToneSeal(cyclesKin).tone : tone;
+    requestAnimationFrame(() => drawPulsarCanvas(ct));
   }
 }
 
 /* ── Dynamic event binding ── */
 function bindCardEvents(kin, tone, seal) {
   const card = document.getElementById('card');
+
+  // Collapsible sections
+  card.querySelectorAll('.collapsible-header').forEach(el => {
+    el.addEventListener('click', () => {
+      haptic('selection');
+      el.closest('.collapsible').classList.toggle('open');
+    });
+  });
+
+  // Wave banner → Magnetic Gates popup
+  card.querySelectorAll('.wave-banner').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => showInfoPopup('МАГНИТНЫЕ ВРАТА', `<p class="pp-intro">${dsTexts?.tzolkin_legend?.magnetic_gates?.popup || ''}</p>`));
+  });
 
   // Share button
   card.querySelectorAll('[data-action="share-kin"]').forEach(el => {
@@ -1785,7 +1833,7 @@ function bindCardEvents(kin, tone, seal) {
     });
   });
 
-  // Oracle: cross cell clicks show popup
+  // Oracle: cross cell clicks → navigate to that kin's date (preserve scroll)
   const roleAreaMap = { guide: 0, anti: 1, analog: 2, hidden: 3 };
   card.querySelectorAll('.oracle-cell[data-oracle-role]').forEach(el => {
     el.addEventListener('click', () => {
@@ -1794,16 +1842,23 @@ function bindCardEvents(kin, tone, seal) {
       const curKin = dreamspellKin(currentDate);
       const o = oracle(curKin);
       const kinMap = { guide: o.guide, anti: o.antipode, analog: o.analog, hidden: o.hidden };
-      showKinPopup(kinMap[area], ORACLE_ROLES[roleAreaMap[area]]);
+      haptic('medium');
+      const scrollY = window.scrollY;
+      currentDate = dateForKin(kinMap[area]);
+      render();
+      window.scrollTo(0, scrollY);
     });
   });
 
-  // Oracle: row clicks show popup
+  // Oracle: row clicks → navigate to that kin's date
   card.querySelectorAll('.oracle-row[data-oracle-kin]').forEach(el => {
     el.addEventListener('click', () => {
       const targetKin = +el.dataset.oracleKin;
-      const area = el.dataset.oracleRow;
-      showKinPopup(targetKin, ORACLE_ROLES[roleAreaMap[area]]);
+      haptic('medium');
+      const scrollY = window.scrollY;
+      currentDate = dateForKin(targetKin);
+      render();
+      window.scrollTo(0, scrollY);
     });
   });
 
@@ -1988,6 +2043,15 @@ function renderSettings() {
     </div>
 
     <div class="detail-section">
+      <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>РЕЖИМ ОТОБРАЖЕНИЯ</h3>
+      <p style="margin-top:8px;font-size:11px;color:var(--ink-faint)">БАЗА — компактный вид для ежедневного использования. ПРОФИ — полная информация со сворачиваемыми блоками.</p>
+      <div class="mode-toggle" style="margin-top:10px;display:flex;gap:0;border:1px solid var(--hairline);border-radius:10px;overflow:hidden">
+        <button class="mode-btn${displayMode === 'base' ? ' active' : ''}" data-mode="base" style="flex:1;padding:10px;border:none;background:${displayMode === 'base' ? 'rgba(125,223,239,0.15)' : 'transparent'};color:${displayMode === 'base' ? 'var(--n-cyan)' : 'var(--ink-faint)'};font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:0.1em;cursor:pointer">БАЗА</button>
+        <button class="mode-btn${displayMode === 'pro' ? ' active' : ''}" data-mode="pro" style="flex:1;padding:10px;border:none;border-left:1px solid var(--hairline);background:${displayMode === 'pro' ? 'rgba(192,125,255,0.15)' : 'transparent'};color:${displayMode === 'pro' ? 'var(--n-violet)' : 'var(--ink-faint)'};font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:0.1em;cursor:pointer">ПРОФИ</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
       <h3><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>ОБРАТНАЯ СВЯЗЬ</h3>
       <p style="margin-top:10px">
         <a href="https://t.me/U314159" style="color:var(--n-cyan);font-family:var(--font-mono);font-size:13px;text-decoration:none">💬 @U314159</a>
@@ -2021,6 +2085,15 @@ function renderSettings() {
       renderSettings();
     });
   }
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      displayMode = btn.dataset.mode;
+      localStorage.setItem('displayMode', displayMode);
+      haptic('medium');
+      renderSettings();
+      render();
+    });
+  });
 }
 
 function showSettingsModal() {
@@ -2060,16 +2133,39 @@ function setupEvents() {
 
   const datePicker = document.getElementById('date-picker');
   document.getElementById('date-display').addEventListener('click', () => {
-    datePicker.value = currentDate.toISOString().slice(0, 10);
-    datePicker.showPicker?.() || datePicker.click();
-  });
-  datePicker.addEventListener('change', () => {
-    if (datePicker.value) {
-      const [y, m, d] = datePicker.value.split('-').map(Number);
-      currentDate = new Date(y, m - 1, d);
-      cyclesKin = null;
-      render();
-    }
+    const curKin = dreamspellKin(currentDate);
+    showInfoPopup('НАВИГАЦИЯ', `
+      <div style="margin-bottom:14px">
+        <div class="eyebrow" style="margin-bottom:6px">ПЕРЕЙТИ К ДАТЕ</div>
+        <input type="date" id="nav-date-input" value="${currentDate.toISOString().slice(0, 10)}" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--hairline-2);border-radius:10px;color:var(--ink);font-family:var(--font-mono);font-size:14px;padding:10px;outline:none">
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px">ПЕРЕЙТИ К КИНУ (1–260)</div>
+        <div style="display:flex;gap:8px">
+          <input type="number" id="nav-kin-input" min="1" max="260" value="${curKin}" placeholder="1–260" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--hairline-2);border-radius:10px;color:var(--ink);font-family:var(--font-mono);font-size:14px;padding:10px;outline:none;-moz-appearance:textfield">
+          <button id="nav-kin-go" style="width:48px;border:1px solid var(--hairline);border-radius:10px;background:rgba(125,223,239,0.1);color:var(--n-cyan);font-size:20px;cursor:pointer">→</button>
+        </div>
+      </div>`);
+    setTimeout(() => {
+      document.getElementById('nav-date-input')?.addEventListener('change', (e) => {
+        const [y, m, d] = e.target.value.split('-').map(Number);
+        currentDate = new Date(y, m - 1, d);
+        cyclesKin = null;
+        closeKinPopup();
+        render();
+      });
+      const goKin = () => {
+        const n = parseInt(document.getElementById('nav-kin-input')?.value, 10);
+        if (n >= 1 && n <= 260) {
+          currentDate = dateForKin(n);
+          cyclesKin = null;
+          closeKinPopup();
+          render();
+        }
+      };
+      document.getElementById('nav-kin-go')?.addEventListener('click', goKin);
+      document.getElementById('nav-kin-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') goKin(); });
+    }, 50);
   });
 
   // Tab buttons
