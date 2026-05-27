@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '40';
+const APP_VER = '41';
 let sealsData, tonesData, kinsData, mayaData;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -443,7 +443,7 @@ function renderOracle(kin) {
       ${cell(o.antipode, 'АНТИПОД', 'anti')}
       ${cell(kin, 'КИН ДНЯ', 'main')}
       ${cell(o.analog, 'АНАЛОГ', 'analog')}
-      ${cell(o.hidden, 'ОККУЛЬТНЫЙ', 'hidden')}
+      ${cell(o.hidden, 'ОККУЛЬТНЫЙ УЧИТЕЛЬ', 'hidden')}
     </div><div class="oracle-list">`;
 
   const roleAreaMap = { guide: 'guide', antipode: 'anti', analog: 'analog', hidden: 'hidden' };
@@ -863,12 +863,34 @@ function renderPersonal() {
     connections.push({ icon: '🎵', text: `Один Тон — ${bToneInfo.name_ru}. Резонанс ритма.` });
   }
   if (bWave === tWave) {
-    connections.push({ icon: '🌀', text: `Одна Волна — ${bWave}. Общая 13-дневная тема.` });
+    const tPos = (todayKin - 1) % 13 + 1;
+    const wFirstSeal = kinToToneSeal((bWave - 1) * 13 + 1).seal;
+    connections.push({ icon: '🌀', text: `Ваша Волна — ${sealsData[wFirstSeal].name_ru} (день ${tPos} из 13). Вся волна резонирует с вашим Кином.` });
+  }
+  // Today's wave is led by the same seal as an oracle kin
+  const tWaveLeaderSeal = kinToToneSeal((tWave - 1) * 13 + 1).seal;
+  const oracleWaveChecks = [
+    { kin: bOracle.guide,    label: 'Управителя' },
+    { kin: bOracle.analog,   label: 'Аналога' },
+    { kin: bOracle.antipode, label: 'Антипода' },
+    { kin: bOracle.hidden,   label: 'Оккультного Учителя' },
+  ];
+  for (const ow of oracleWaveChecks) {
+    const owSeal = kinToToneSeal(ow.kin).seal;
+    if (tWaveLeaderSeal === owSeal && tWave !== bWave && owSeal !== bSeal) {
+      connections.push({ icon: '🌀', text: `Волна ${sealsData[owSeal].name_ru} — волна вашего ${ow.label}.` });
+      break;
+    }
+  }
+  // Today's wave is led by the user's birth seal
+  const tWaveFirstSeal = kinToToneSeal((tWave - 1) * 13 + 1).seal;
+  if (tWaveFirstSeal === bSeal && bWave !== tWave) {
+    connections.push({ icon: '🌀', text: `Сейчас Волна ${bSealInfo.name_ru} — волна вашей Печати.` });
   }
   if (bCastle === tCastle) {
     connections.push({ icon: '🏰', text: `Один Замок — ${CASTLE_NAMES[bCastle]?.split(' ')[0]}. Общий 52-дневный цикл.` });
   }
-  // Oracle relationships
+  // Oracle relationships — exact kin match
   if (todayKin === bOracle.guide || bKin === tOracle.guide) {
     connections.push({ icon: '↑', text: 'Связь Управителя — направляющая энергия.' });
   }
@@ -941,7 +963,7 @@ function renderPersonal() {
           + mcell(bOracle.antipode, 'АНТИПОД', 'anti')
           + mcell(bKin, 'МОЙ КИН', 'main')
           + mcell(bOracle.analog, 'АНАЛОГ', 'analog')
-          + mcell(bOracle.hidden, 'ОККУЛЬТНЫЙ', 'hidden');
+          + mcell(bOracle.hidden, 'ОККУЛЬТНЫЙ УЧИТЕЛЬ', 'hidden');
       })()}
     </div>
   </div>
