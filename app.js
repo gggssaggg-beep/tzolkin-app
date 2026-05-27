@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '34';
+const APP_VER = '35';
 let sealsData, tonesData, kinsData, mayaData;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -191,6 +191,7 @@ function testVibration() {
 let audioCtx = null;
 let musicPlaying = false;
 let musicGain = null;
+let _audioEl = null;
 
 function startAmbient() {
   if (audioCtx) return;
@@ -201,17 +202,12 @@ function startAmbient() {
   master.connect(comp);
   comp.connect(audioCtx.destination);
   musicGain = master;
-  // Solfeggio 174 Hz drone + harmonics
-  [[174, 0.45], [261, 0.11], [348, 0.07], [87, 0.18]].forEach(([f, v]) => {
-    const osc = audioCtx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = f;
-    const g = audioCtx.createGain();
-    g.gain.value = v;
-    osc.connect(g);
-    g.connect(master);
-    osc.start();
-  });
+
+  _audioEl = new Audio('music/ambient.mp3');
+  _audioEl.loop = true;
+  _audioEl.crossOrigin = 'anonymous';
+  const src = audioCtx.createMediaElementSource(_audioEl);
+  src.connect(master);
 }
 
 function toggleMusic() {
@@ -219,9 +215,10 @@ function toggleMusic() {
   if (!audioCtx) startAmbient();
   if (!musicPlaying) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
+    _audioEl.play().catch(() => {});
     musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
     musicGain.gain.setValueAtTime(musicGain.gain.value, audioCtx.currentTime);
-    musicGain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 2.5);
+    musicGain.gain.linearRampToValueAtTime(0.55, audioCtx.currentTime + 2.5);
     musicPlaying = true;
     btn.classList.add('playing');
     btn.textContent = '♪';
@@ -229,6 +226,7 @@ function toggleMusic() {
     musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
     musicGain.gain.setValueAtTime(musicGain.gain.value, audioCtx.currentTime);
     musicGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5);
+    setTimeout(() => _audioEl && _audioEl.pause(), 1600);
     musicPlaying = false;
     btn.classList.remove('playing');
     btn.textContent = '♫';
@@ -828,13 +826,15 @@ function renderMyKinContent() {
   const birthDateStr = localStorage.getItem('birthDate');
 
   if (!birthDateStr) {
+    const todayStr = new Date().toISOString().slice(0, 10);
     modal.innerHTML = `
       <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> МОЙ КИН СУДЬБЫ</h3>
       <p style="color:var(--ink-faint);margin-bottom:12px;font-size:13px;line-height:1.5">Укажите дату рождения, чтобы узнать свой Кин Судьбы и связь с текущим днём.</p>
       <div class="birth-input-group">
-        <input type="date" id="birth-date-input">
+        <input type="date" id="birth-date-input" value="1990-01-01" min="1900-01-01" max="${todayStr}">
         <button id="birth-save-btn">OK</button>
-      </div>`;
+      </div>
+      <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;text-align:center">Или введите текстом: <input type="text" id="birth-text-input" placeholder="26.07.1990" style="background:rgba(255,255,255,0.06);border:1px solid var(--hairline-2);border-radius:8px;color:var(--ink);padding:4px 8px;font-family:var(--font-mono);font-size:12px;width:100px;text-align:center"></p>`;
     return;
   }
 
@@ -973,11 +973,31 @@ function showMyKinModal() {
     const saveBtn = document.getElementById('birth-save-btn');
     if (saveBtn) {
       saveBtn.addEventListener('click', () => {
-        const input = document.getElementById('birth-date-input');
-        if (input.value) {
-          localStorage.setItem('birthDate', input.value);
+        const dateInput = document.getElementById('birth-date-input');
+        const textInput = document.getElementById('birth-text-input');
+        let dateVal = dateInput?.value;
+
+        // Try text input if date input is empty or text input has content
+        if ((!dateVal || dateVal === '1990-01-01') && textInput?.value.trim()) {
+          // Parse text like "26.07.1990", "26/07/1990", "1990-07-26"
+          const raw = textInput.value.trim().replace(/\//g, '.').replace(/-/g, '.');
+          const parts = raw.split('.');
+          if (parts.length === 3) {
+            let [a, b, c] = parts.map(Number);
+            // Determine if format is DD.MM.YYYY or YYYY.MM.DD
+            const iso = c > 100 ? `${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`
+                                : `${a}-${String(b).padStart(2,'0')}-${String(c).padStart(2,'0')}`;
+            const parsed = new Date(iso);
+            if (!isNaN(parsed.getTime())) dateVal = iso;
+          }
+        } else if (!dateVal && !textInput?.value.trim()) {
+          dateVal = null;
+        }
+
+        if (dateVal) {
+          localStorage.setItem('birthDate', dateVal);
+          haptic('medium');
           renderMyKinContent();
-          // Re-bind after re-render
           setTimeout(() => bindMyKinEvents(), 0);
         }
       });
@@ -1135,6 +1155,77 @@ function renderMayaClassic() {
     </div>
     <p style="font-size:11px;color:var(--ink-faint);margin-top:8px">Дримспелл (Х. Аргуэльес, 1992) — авторская New Age-интерпретация, не классический счёт. Живая традиция К'иче'-майя Гватемалы сохранила непрерывный счёт, совпадающий с корреляцией GMT.</p>
   </div>`;
+
+  // ── Long Count cycles ──
+  if (mayaData.long_count) {
+    const lc = mayaData.long_count;
+    html += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span>ДЛИННЫЙ СЧЁТ — ЦИКЛЫ ВРЕМЕНИ</h3>
+    <p>Длинный счёт — линейный счёт дней от даты Создания (11 авг. 3114 до н.э.). Позиционная запись похожа на наши числа, только в основе — система 20 (виджесимальная), с одним исключением: Виналь×18, чтобы приблизить Тун к солнечному году.</p>
+    <div class="maya-lc-table" style="margin:14px 0">`;
+
+    const fmt = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + ' млрд' : n >= 1e6 ? (n / 1e6).toFixed(2) + ' млн' : n.toLocaleString('ru-RU');
+    for (const u of lc.units) {
+      const highlight = ['K\'in','Tun','K\'atun','B\'ak\'tun'].includes(u.name);
+      html += `<div class="maya-lc-row${highlight ? ' lc-highlight' : ''}">
+        <span class="lc-name">${u.name}</span>
+        <span class="lc-days">${fmt(u.days)} дн.</span>
+        <span class="lc-years">${u.years_approx ? '≈' + (u.years_approx >= 1e6 ? (u.years_approx/1e6).toFixed(1)+'М' : u.years_approx >= 1000 ? Math.round(u.years_approx/1000)+'К' : u.years_approx) + ' лет' : '—'}</span>
+        <span class="lc-note">${u.note}</span>
+      </div>`;
+    }
+
+    const gc = lc.great_cycle;
+    html += `</div>
+    <div class="maya-great-cycle" style="margin-top:12px;padding:10px 12px;background:rgba(255,190,0,0.06);border-left:2px solid var(--n-amber);border-radius:4px">
+      <div style="font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--n-amber)">▸ ВЕЛИКИЙ ЦИКЛ</div>
+      <div style="font-family:var(--font-mono);font-size:13px;color:var(--ink-mid);margin-top:4px">13 Б'АКТ'УНОВ = 1 872 000 ДНЕЙ ≈ 5 125 ЛЕТ</div>
+      <p style="margin-top:6px;font-size:12px">${gc.note}</p>
+    </div>
+    <p style="font-size:11px;color:var(--ink-faint);margin-top:8px">Единицы Пиктун и выше (7885+ лет) использовались в мифологических надписях — например, в Паленке, где рождение бога-покровителя записано за миллионы лет до наших дней.</p>
+  </div>`;
+  }
+
+  // ── Astronomical correlations ──
+  if (mayaData.astronomical_cycles) {
+    const ac = mayaData.astronomical_cycles;
+    const bodyIcons = { 'Венера': '♀', 'Марс': '♂', 'Луна': '☽', 'Юпитер и Сатурн': '♃', 'Солнце': '☉', 'Плеяды': '✦' };
+    const bodyColors = { 'Венера': 'cyan', 'Марс': 'red', 'Луна': 'violet', 'Юпитер и Сатурн': 'amber', 'Солнце': 'amber', 'Плеяды': 'cyan' };
+
+    html += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>АСТРОНОМИЧЕСКИЕ КОРРЕЛЯЦИИ</h3>
+    <p>${ac.description}</p>`;
+
+    for (const cycle of ac.cycles) {
+      const icon = bodyIcons[cycle.body] || '●';
+      const c = bodyColors[cycle.body] || 'cyan';
+      html += `<div style="margin-top:14px;padding:10px 12px;background:rgba(0,0,0,0.2);border-left:2px solid var(--n-${c});border-radius:4px">
+        <div style="font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--n-${c})">${icon} ${cycle.body}</div>`;
+      if (cycle.synodic_period_days || cycle.synodic_period_days_jupiter) {
+        const period = cycle.synodic_period_days
+          ? `синодический период: ${cycle.synodic_period_days} дн.${cycle.maya_approximation ? ' → майя: ' + cycle.maya_approximation + ' дн.' : ''}`
+          : `Юпитер: ${cycle.synodic_period_days_jupiter} дн. · Сатурн: ${cycle.synodic_period_days_saturn} дн.`;
+        html += `<div style="font-size:11px;color:var(--ink-faint);margin-top:3px">${period}</div>`;
+      }
+      html += `<ul style="margin:8px 0 0 0;padding-left:16px;font-size:12px;color:var(--ink-mid)">`;
+      for (const cor of cycle.correlations) {
+        html += `<li style="margin-bottom:4px">${cor}</li>`;
+      }
+      html += `</ul>`;
+      if (cycle.codex_reference) {
+        html += `<div style="font-size:11px;color:var(--ink-faint);margin-top:6px;font-style:italic">📖 ${cycle.codex_reference}</div>`;
+      }
+      if (cycle.note_ru) {
+        html += `<p style="font-size:11px;color:var(--ink-faint);margin-top:6px">${cycle.note_ru}</p>`;
+      }
+      html += `</div>`;
+    }
+
+    html += `<div style="margin-top:12px;font-size:10px;color:var(--ink-faint);line-height:1.5">
+      Источники: ${ac.sources.join(' · ')}
+    </div>
+  </div>`;
+  }
 
   return html;
 }
