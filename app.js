@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '44';
+const APP_VER = '45';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -530,8 +530,20 @@ function renderMain(kin, tone, seal) {
         <div class="info-value">${CASTLE_NAMES[cast]?.split(' ')[0] || cast}</div>
         <div class="info-sub">${CASTLE_HINTS[cast]?.split('—')[0]?.trim() || ''}</div>
       </div>
-    </div>
-    <button class="share-btn" data-action="share-kin">ПОДЕЛИТЬСЯ</button>
+    </div>`;
+
+  // Compact status badges
+  const harmonic = Math.ceil(kin / 4);
+  const harmonicPhase = dsTexts?.harmonics?.phases?.[(kin - 1) % 4] || '';
+  const badges = [];
+  if (gap) badges.push(`<span class="status-badge gap-bg" data-action="gap-info">ГАП</span>`);
+  if (tone === 1) badges.push(`<span class="status-badge gate-bg" data-action="gate-info">МАГНИТНЫЕ ВРАТА</span>`);
+  const spKins = dsTexts?.tzolkin_legend?.spectral_polar?.kins || [];
+  if (spKins.includes(kin)) badges.push(`<span class="status-badge sp-bg" data-action="sp-info">СПЕКТРАЛЬНЫЙ ПОЛЯРНЫЙ</span>`);
+  badges.push(`<span class="status-badge harm-bg" data-action="harm-info">ГАРМОНИКА ${harmonic} · ${harmonicPhase}</span>`);
+  html += `<div class="status-badges">${badges.join('')}</div>`;
+
+  html += `<button class="share-btn" data-action="share-kin">ПОДЕЛИТЬСЯ</button>
   </div>`;
 
   // Seal detail block
@@ -722,6 +734,13 @@ function renderWave(kin, tone) {
     <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span> ПУЛЬСАР: ${p.name}${pulsarData ? ` (${pulsarData.dimension})` : ''}</h3>
     <p class="section-intro">${dsTexts?.pulsars?.intro || 'Пульсар — ритм внутри волны: какое измерение активно сегодня.'}</p>
     <p class="pp-main">${pulsarData?.description || p.hint}</p>
+  </div>`;
+
+  // Pulsar geometry visualization
+  html += `<div class="kin-card" style="padding:14px 10px">
+    <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> ГЕОМЕТРИЯ ПУЛЬСАРОВ</h3>
+    <p class="section-intro">Нажмите на тон, чтобы увидеть его пульсар. Линии показывают нелинейные связи внутри Волны.</p>
+    <canvas id="pulsar-canvas" width="600" height="280" style="width:100%;border-radius:12px;cursor:pointer"></canvas>
   </div>`;
 
   // 13 kins of wave
@@ -974,11 +993,12 @@ function renderTzolkin(currentKin) {
       <span><span class="legend-swatch" style="background:oklch(0.75 0.08 195)"></span>Белый</span>
       <span><span class="legend-swatch" style="background:oklch(0.40 0.16 265)"></span>Синий</span>
       <span><span class="legend-swatch" style="background:oklch(0.72 0.12 85)"></span>Жёлтый</span>
-      <span title="Galactic Activation Portal — день усиленной галактической энергии. 52 дня из 260."><span class="legend-swatch" style="background:oklch(0.55 0.14 155)"></span>ГАП <span class="legend-hint">ⓘ</span></span>
+      <span title="${dsTexts?.gap_portals?.description || ''}"><span class="legend-swatch" style="background:oklch(0.55 0.14 155)"></span>ГАП <span class="legend-hint">ⓘ</span></span>
       <span title="Мистическая колонка — 7-й столбец Цолькина (тон 7). 20 дней зеркальной симметрии."><span class="legend-swatch" style="background:rgba(120,100,160,0.4)"></span>Мист. <span class="legend-hint">ⓘ</span></span>
+      <span title="${dsTexts?.tzolkin_legend?.magnetic_gates?.legend || ''}"><span class="legend-swatch" style="background:transparent;border:2px solid #fff;border-radius:2px"></span>Врата <span class="legend-hint">ⓘ</span></span>
+      <span title="${dsTexts?.tzolkin_legend?.spectral_polar?.legend || ''}"><span class="legend-swatch" style="background:transparent;border:2px solid var(--n-violet);border-radius:50%"></span>Спектр. <span class="legend-hint">ⓘ</span></span>
     </div>
-    <p class="section-intro" style="margin-top:8px">Полная таблица 260 кинов. 20 строк — печати (слева), 13 столбцов — тоны. Нажмите на ячейку, чтобы перейти к этому дню.</p>
-    <p class="section-intro" style="margin-top:4px;border:none;padding:0">ГАП — 52 дня усиленной энергии. Мист. — мистическая колонка (7-й столбец): 20 дней зеркальной симметрии.</p>
+    <p class="section-intro" style="margin-top:8px">Полная таблица 260 кинов. 20 строк — печати, 13 столбцов — тоны. Нажмите на ячейку для перехода.</p>
   </div>`;
 
   html += `<div class="tzolkin-grid-wrapper"><div class="tzolkin-grid">`;
@@ -998,9 +1018,13 @@ function renderTzolkin(currentKin) {
       if (gap) colorCls = 'color-gap';
       else if (isMystic) colorCls = 'color-mystic';
       else colorCls = 'color-' + sealColor(seal);
+      const isMagGate = tone === 1;
+      const isSpectralPolar = [50, 115, 180, 245].includes(k);
       let cls = `tzolkin-cell ${colorCls}`;
       if (isCurrent) cls += ' current-kin';
       if (isBirth) cls += ' birth-kin';
+      if (isMagGate) cls += ' mag-gate';
+      if (isSpectralPolar) cls += ' spectral-polar';
       const d = addDays(kin1Date, k - 1);
       const titleStr = `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()} · Кин ${k}`;
       html += `<div class="${cls}" data-tz-kin="${k}" title="${titleStr}">${mayaDots(tone)}<span class="tz-kin-num">${k}</span></div>`;
@@ -1423,6 +1447,136 @@ function renderMayaClassic() {
   return html;
 }
 
+/* ── Pulsar geometry canvas ── */
+function drawPulsarCanvas(activeTone) {
+  const cvs = document.getElementById('pulsar-canvas');
+  if (!cvs) return;
+  const c = cvs.getContext('2d');
+  const W = cvs.width, H = cvs.height;
+  c.clearRect(0, 0, W, H);
+
+  // Background
+  c.fillStyle = '#08001a';
+  c.fillRect(0, 0, W, H);
+
+  // Tone positions: zigzag wave pattern
+  const pad = 30, usableW = W - pad * 2;
+  const pts = [];
+  for (let i = 0; i < 13; i++) {
+    const x = pad + (i / 12) * usableW;
+    const y = H / 2 + Math.sin(i * 0.5) * 55 * (i % 2 === 0 ? -1 : 1);
+    pts.push({ x, y });
+  }
+
+  const groups = dsTexts?.pulsar_visual?.groups || [
+    {name:'Магнитный',tones:[1,5,9,13],color:'#c07dff'},
+    {name:'Лунный',tones:[2,6,10],color:'#e8453c'},
+    {name:'Электрический',tones:[3,7,11],color:'#6b7fff'},
+    {name:'Разумный',tones:[4,8,12],color:'#efc94c'},
+  ];
+
+  // Find which pulsar the active tone belongs to
+  let activeGroup = null;
+  if (activeTone) {
+    activeGroup = groups.find(g => g.tones.includes(activeTone));
+  }
+
+  // Draw pulsar lines
+  for (const g of groups) {
+    const isActive = !activeGroup || g === activeGroup;
+    const alpha = isActive ? 0.8 : 0.12;
+    c.strokeStyle = g.color;
+    c.lineWidth = isActive ? 2.5 : 1;
+    c.globalAlpha = alpha;
+    c.beginPath();
+    g.tones.forEach((t, i) => {
+      const p = pts[t - 1];
+      if (i === 0) c.moveTo(p.x, p.y);
+      else c.lineTo(p.x, p.y);
+    });
+    c.stroke();
+
+    // Glow
+    if (isActive && !activeGroup) {
+      c.globalAlpha = 0.15;
+      c.lineWidth = 8;
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+  }
+
+  // Draw tone dots
+  for (let i = 0; i < 13; i++) {
+    const t = i + 1;
+    const p = pts[i];
+    const myGroup = groups.find(g => g.tones.includes(t));
+    const isHighlighted = !activeGroup || myGroup === activeGroup;
+    const isCurrent = t === activeTone;
+
+    // Dot
+    c.beginPath();
+    c.arc(p.x, p.y, isCurrent ? 12 : 8, 0, Math.PI * 2);
+    c.fillStyle = isHighlighted ? (myGroup?.color || '#aaa') : 'rgba(100,80,140,0.3)';
+    c.globalAlpha = isHighlighted ? 1 : 0.3;
+    c.fill();
+
+    // Glow on current
+    if (isCurrent) {
+      c.beginPath();
+      c.arc(p.x, p.y, 18, 0, Math.PI * 2);
+      c.fillStyle = myGroup?.color || '#fff';
+      c.globalAlpha = 0.2;
+      c.fill();
+    }
+    c.globalAlpha = 1;
+
+    // Tone number
+    c.fillStyle = isHighlighted ? '#fff' : 'rgba(255,255,255,0.25)';
+    c.font = `bold ${isCurrent ? 11 : 9}px "JetBrains Mono", monospace`;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText(String(t), p.x, p.y);
+  }
+
+  // Legend at bottom
+  c.font = '9px "JetBrains Mono", monospace';
+  c.textBaseline = 'bottom';
+  let lx = pad;
+  for (const g of groups) {
+    const isActive = !activeGroup || g === activeGroup;
+    c.globalAlpha = isActive ? 1 : 0.3;
+    c.fillStyle = g.color;
+    c.fillRect(lx, H - 16, 8, 8);
+    c.fillStyle = isActive ? '#e8e2ff' : 'rgba(232,226,255,0.3)';
+    c.textAlign = 'left';
+    c.fillText(g.name, lx + 12, H - 8);
+    lx += c.measureText(g.name).width + 28;
+  }
+  c.globalAlpha = 1;
+
+  // Click handler: detect closest tone
+  if (!cvs._pulsarBound) {
+    cvs._pulsarBound = true;
+    cvs._pts = pts;
+    cvs.addEventListener('click', (e) => {
+      const rect = cvs.getBoundingClientRect();
+      const sx = (e.clientX - rect.left) * (W / rect.width);
+      const sy = (e.clientY - rect.top) * (H / rect.height);
+      let closest = null, minD = Infinity;
+      for (let i = 0; i < 13; i++) {
+        const dx = cvs._pts[i].x - sx, dy = cvs._pts[i].y - sy;
+        const d = dx * dx + dy * dy;
+        if (d < minD) { minD = d; closest = i + 1; }
+      }
+      if (minD < 900) {
+        haptic('selection');
+        cvs._activeTone = cvs._activeTone === closest ? null : closest;
+        drawPulsarCanvas(cvs._activeTone);
+      }
+    });
+  }
+}
+
 /* ── Render dispatcher ── */
 function render() {
   const kin = dreamspellKin(currentDate);
@@ -1449,6 +1603,11 @@ function render() {
 
   // Bind dynamic events after render
   bindCardEvents(kin, tone, seal);
+
+  // Draw pulsar canvas (wave tab)
+  if (currentTab === 'main') {
+    requestAnimationFrame(() => drawPulsarCanvas(tone));
+  }
 }
 
 /* ── Dynamic event binding ── */
@@ -1458,6 +1617,23 @@ function bindCardEvents(kin, tone, seal) {
   // Share button
   card.querySelectorAll('[data-action="share-kin"]').forEach(el => {
     el.addEventListener('click', () => { haptic('medium'); shareKin(); });
+  });
+
+  // Status badge popups
+  card.querySelectorAll('[data-action="gap-info"]').forEach(el => {
+    el.addEventListener('click', () => showInfoPopup('ПОРТАЛЫ ГАП', `<p class="pp-intro">${dsTexts?.gap_portals?.description || ''}</p>`));
+  });
+  card.querySelectorAll('[data-action="gate-info"]').forEach(el => {
+    el.addEventListener('click', () => showInfoPopup('МАГНИТНЫЕ ВРАТА', `<p class="pp-intro">${dsTexts?.tzolkin_legend?.magnetic_gates?.popup || ''}</p>`));
+  });
+  card.querySelectorAll('[data-action="sp-info"]').forEach(el => {
+    el.addEventListener('click', () => showInfoPopup('СПЕКТРАЛЬНЫЙ ПОЛЯРНЫЙ КИН', `<p class="pp-intro">${dsTexts?.tzolkin_legend?.spectral_polar?.popup || ''}</p>`));
+  });
+  card.querySelectorAll('[data-action="harm-info"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const h = dsTexts?.harmonics;
+      showInfoPopup('ГАРМОНИКИ', `<p class="pp-intro">${h?.intro || ''}</p><div class="pp-props">${(h?.phases || []).map((p, i) => `▸ ДЕНЬ ${i+1}: ${p}`).join('<br>')}</div>`);
+    });
   });
 
   // Kin search
@@ -1584,10 +1760,11 @@ function bindCardEvents(kin, tone, seal) {
         body = `<p class="pp-intro">Гептада — 7-дневная неделя внутри луны. В каждой луне 4 гептады. Цвет недели чередуется: Красный, Белый, Синий, Жёлтый.</p>
           <div class="pp-props">▸ ГЕПТАДА: ${m.heptad} ИЗ 4<br>▸ ЦВЕТ НЕДЕЛИ: ${m.heptadColor}<br>▸ ЛУНА: ${m.moonNumber} ИЗ 13</div>`;
       } else if (type === 'plasma') {
+        const pd = dsTexts?.plasmas?.list?.[m.plasma.name];
         title = `ПЛАЗМА: ${m.plasma.name}`;
-        body = `<p class="pp-intro">Плазма — ежедневная радиально-плазматическая практика. 7 плазм чередуются каждую неделю-гептаду, активируя разные чакры.</p>
-          <div class="pp-props">▸ ПЛАЗМА: ${m.plasma.name}<br>▸ ЧАКРА: ${m.plasma.chakra}</div>
-          <p class="pp-main">${m.plasma.hint}</p>`;
+        body = `<p class="pp-intro">${dsTexts?.plasmas?.intro || 'Плазма — ежедневная радиально-плазматическая практика.'}</p>
+          <div class="pp-props">▸ ПЛАЗМА: ${m.plasma.name}<br>▸ ЧАКРА: ${pd?.chakra || m.plasma.chakra}<br>▸ ТИП: ${pd?.type || ''}<br>▸ ДЕЙСТВИЕ: ${pd?.action || ''}</div>
+          <p class="pp-main">${pd?.description || m.plasma.hint}</p>`;
       }
       if (title && body) showInfoPopup(title, body);
     });

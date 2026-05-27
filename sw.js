@@ -1,4 +1,4 @@
-const CACHE = 'tzolkin-v44';
+const CACHE = 'tzolkin-v45';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'tzolkin.js', 'manifest.json',
   'data/seals.json', 'data/tones.json', 'data/kin_descriptions.json', 'data/maya_classic.json', 'data/dreamspell_texts.json',
   ...Array.from({length:20}, (_,i) => `img/seal_${String(i+1).padStart(2,'0')}.png`),
