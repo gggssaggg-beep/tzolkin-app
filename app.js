@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '35';
+const APP_VER = '36';
 let sealsData, tonesData, kinsData, mayaData;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -429,12 +429,15 @@ function renderMain(kin, tone, seal) {
 function renderOracle(kin) {
   const o = oracle(kin);
   function cell(k, role, area) {
-    const { seal } = kinToToneSeal(k);
+    const { tone: kt, seal } = kinToToneSeal(k);
     const c = sealColor(seal);
     const isBig = area === 'main';
+    const bsz = isBig ? 56 : 40;
+    const isz = isBig ? 46 : 32;
     return `<div class="oracle-cell c-${c} ${isBig ? 'main' : ''}" style="grid-area:${area}" data-oracle-role="${area}">
       <div class="role">${role}</div>
-      <div class="seal-icon">${sealImg(seal, isBig ? 48 : 32, true)}</div>
+      <div class="seal-badge ${c}" style="width:${bsz}px;height:${bsz}px;margin:4px auto 2px">${sealImg(seal, isz, true)}</div>
+      <div style="margin:1px 0">${toneImg(kt, 16)}</div>
       <div class="kin-num-cell">${k}</div>
     </div>`;
   }
@@ -684,8 +687,8 @@ function renderCycles(kin) {
 
   // Castle strip (5 cells)
   html += `<div class="cycle-strip c-${castleColors[castIdx]}">
-    <div class="cycle-strip-header">
-      <span class="eyebrow">ЗАМОК</span>
+    <div class="cycle-strip-header" data-action="cycles-castle-popup" style="cursor:pointer">
+      <span class="eyebrow">ЗАМОК ▸</span>
       <span class="eyebrow muted" id="cyc-castle-num">${castNum} / 5 · 52 ДНЯ</span>
     </div>
     <div class="cycle-strip-grid" style="grid-template-columns:repeat(5,1fr)" data-cycle="castle" data-unit="52">`;
@@ -701,8 +704,8 @@ function renderCycles(kin) {
   // Wave strip (4 cells within castle)
   const waveColors = ['red','cyan','blue','amber'];
   html += `<div class="cycle-strip c-${waveColors[waveInCastle]}" style="margin-left:14px">
-    <div class="cycle-strip-header">
-      <span class="eyebrow">ВОЛНА</span>
+    <div class="cycle-strip-header" data-action="cycles-wave-popup" style="cursor:pointer">
+      <span class="eyebrow">ВОЛНА ▸</span>
       <span class="eyebrow muted" id="cyc-wave-num">${waveInCastle + 1} / 4 · 13 КИНОВ</span>
     </div>
     <div class="cycle-strip-grid" style="grid-template-columns:repeat(4,1fr)" data-cycle="wave" data-unit="13">`;
@@ -718,8 +721,8 @@ function renderCycles(kin) {
 
   // Tone strip (13 cells)
   html += `<div class="cycle-strip c-${waveColors[waveInCastle]}" style="margin-left:28px">
-    <div class="cycle-strip-header">
-      <span class="eyebrow">ПУЛЬСАР · ТОН</span>
+    <div class="cycle-strip-header" data-action="cycles-pulsar-popup" style="cursor:pointer">
+      <span class="eyebrow">ПУЛЬСАР · ТОН ▸</span>
       <span class="eyebrow muted" id="cyc-tone-name">${toneInfo.name_ru.toUpperCase()}</span>
     </div>
     <div class="cycle-strip-grid" style="grid-template-columns:repeat(13,1fr)" data-cycle="tone" data-unit="1">`;
@@ -734,14 +737,15 @@ function renderCycles(kin) {
   // Info card
   html += `<div class="cycle-info-card">
     <div class="row">
-      <div class="c-${color}" style="width:80px;height:80px;flex-shrink:0;display:grid;place-items:center">
-        ${sealImg(seal, 72, true)}
+      <div class="seal-badge ${color}" style="width:80px;height:80px;flex-shrink:0">
+        ${sealImg(seal, 68, true)}
       </div>
       <div style="flex:1;min-width:0">
         <div class="eyebrow">КИН · ${kin} / 260</div>
-        <div class="kin-num c-${color}" style="font-size:44px;margin-top:2px">${kin}</div>
-        <div class="display" style="font-size:10px;margin-top:6px;opacity:0.85">
-          ЗАМОК ${castNum} · ВОЛНА ${waveInCastle + 1} · ТОН ${tone}
+        <div style="margin-top:4px">${toneImg(tone, 28)}</div>
+        <div class="kin-num c-${color}" style="font-size:44px;margin-top:0;cursor:pointer" data-action="cycles-kin-popup">${kin}</div>
+        <div class="display" style="font-size:10px;margin-top:4px;opacity:0.85">
+          ЗАМОК ${castNum} · ВОЛНА ${waveInCastle + 1} · ТОН ${tone} · ${info?.title || ''}
         </div>
       </div>
     </div>
@@ -1084,6 +1088,7 @@ function renderMayaClassic() {
   html += `<div class="kin-card">
     <div class="eyebrow" style="text-align:center;margin-bottom:10px;letter-spacing:0.18em">КЛАССИЧЕСКИЙ МАЙЯ · GMT 584283</div>
     <div style="text-align:center;margin-bottom:6px">${mayaDots(md.tzolkinNum)}</div>
+    <div style="text-align:center;margin-bottom:4px">${toneImg(md.tzolkinNum, 36)}</div>
     <div class="kin-number c-${color}" style="font-size:52px;text-align:center;margin-bottom:4px">${md.tzolkinNum}</div>
     <div class="kin-title" style="font-size:22px;text-align:center;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">${signData.name_yucatec}</div>
     <div class="kin-subtitle" style="text-align:center;margin-bottom:12px">${signData.meaning_ru}</div>
@@ -1110,6 +1115,13 @@ function renderMayaClassic() {
     </div>
     <p style="margin-top:10px">${signData.qualities_ru}</p>
     ${signData.notes_scholarly ? `<p style="font-size:11px;color:var(--ink-faint);margin-top:8px;font-style:italic">${signData.notes_scholarly}</p>` : ''}
+  </div>`;
+
+  // ── Legend from primary sources ──
+  if (signData.legend_ru) html += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-${color});box-shadow:0 0 8px var(--n-${color})"></span>ЛЕГЕНДА · ${signData.name_yucatec}</h3>
+    <p style="line-height:1.7">${signData.legend_ru}</p>
+    ${signData.legend_source ? `<p style="font-size:10px;color:var(--ink-faint);margin-top:10px;font-style:italic;line-height:1.5">📖 ${signData.legend_source}</p>` : ''}
   </div>`;
 
   // ── Shadow ──
@@ -1262,39 +1274,98 @@ function render() {
 function bindCardEvents(kin, tone, seal) {
   const card = document.getElementById('card');
 
+  // Shared: build wave popup content for a given kin
+  function _wavePopupHtml(k) {
+    const { tone: t } = kinToToneSeal(k);
+    const wave = wavespell(k);
+    const waveFirst = (wave - 1) * 13 + 1;
+    const { seal: waveSeal } = kinToToneSeal(waveFirst);
+    const wsi = sealsData[waveSeal];
+    const pos = (k - 1) % 13 + 1;
+    const p = pulsar(t);
+    return {
+      title: `ВОЛНА ${wave} — ${wsi.name_ru}`,
+      body: `<div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:2;color:var(--ink-dim)">
+        <p style="font-style:italic;text-transform:none;font-size:11px;color:var(--ink-faint);margin-bottom:8px">Волновое заклинание (wavespell) — 13-дневный цикл с единой темой, начинающийся на Тоне 1 и завершающийся на Тоне 13. 20 таких волн составляют полный Цолькин. Концепция введена Хосе Аргуэльесом в системе Дримспелл (1987) на основе структуры 13-числового ряда Цолькина.</p>
+        <p>▸ ВОЛНА: ${wave} ИЗ 20</p>
+        <p>▸ СИЛА ВОЛНЫ: ${wsi.power_ru}</p>
+        <p>▸ ДЕЙСТВИЕ: ${wsi.action_ru}</p>
+        <p>▸ ПОЗИЦИЯ: ДЕНЬ ${pos} ИЗ 13</p>
+        <p>▸ ПУЛЬСАР: ${p.name}</p>
+        <p style="font-size:11px;text-transform:none;color:var(--ink-faint);margin-top:6px">${p.hint}</p>
+      </div>`
+    };
+  }
+
+  // Shared: build castle popup content for a given kin
+  function _castlePopupHtml(k) {
+    const cast = castle(k);
+    return {
+      title: `ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}`,
+      body: `<div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:2;color:var(--ink-dim)">
+        <p style="font-style:italic;text-transform:none;font-size:11px;color:var(--ink-faint);margin-bottom:8px">Замок — 52-дневный сверхцикл из 4 волн. Пять замков образуют полный Цолькин (260 дней). Концепция введена Хосе Аргуэльесом в системе Дримспелл (1987): пять замков связаны с пятью цветами — Красный, Белый, Синий, Жёлтый, Зелёный.</p>
+        <p>▸ ЗАМОК ${cast} ИЗ 5</p>
+        <p>▸ ${CASTLE_HINTS[cast].replace(' — ', '</p><p>▸ ')}</p>
+        <p>▸ ВОЛНЫ: ${(cast - 1) * 4 + 1}–${cast * 4}</p>
+      </div>`
+    };
+  }
+
   // Main tab: ВОЛНА popup
   card.querySelectorAll('[data-action="wave-popup"]').forEach(el => {
     el.addEventListener('click', () => {
-      const curKin = dreamspellKin(currentDate);
-      const { tone: curTone } = kinToToneSeal(curKin);
-      const wave = wavespell(curKin);
-      const waveFirst = (wave - 1) * 13 + 1;
-      const { seal: waveSeal } = kinToToneSeal(waveFirst);
-      const wsi = sealsData[waveSeal];
-      const pos = (curKin - 1) % 13 + 1;
-      const p = pulsar(curTone);
-      showInfoPopup(`ВОЛНА ${wave} — ${wsi.name_ru}`,
-        `<div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:2;color:var(--ink-dim)">
-          <p class="section-intro" style="text-transform:none">Волна — 13-дневный цикл с единой темой. Всего 20 волн в цикле Цолькин.</p>
-          <p style="margin-top:8px">▸ СИЛА: ${wsi.power_ru}</p>
-          <p>▸ ДЕЙСТВИЕ: ${wsi.action_ru}</p>
-          <p>▸ ПОЗИЦИЯ: ДЕНЬ ${pos} ИЗ 13</p>
-          <p>▸ ПУЛЬСАР: ${p.name} — ${p.hint}</p>
-        </div>`);
+      const r = _wavePopupHtml(dreamspellKin(currentDate));
+      showInfoPopup(r.title, r.body);
     });
   });
 
   // Main tab: ЗАМОК popup
   card.querySelectorAll('[data-action="castle-popup"]').forEach(el => {
     el.addEventListener('click', () => {
-      const curKin = dreamspellKin(currentDate);
-      const cast = castle(curKin);
-      showInfoPopup(`ЗАМОК ${cast} — ${CASTLE_NAMES[cast]}`,
+      const r = _castlePopupHtml(dreamspellKin(currentDate));
+      showInfoPopup(r.title, r.body);
+    });
+  });
+
+  // Cycles tab: ВОЛНА popup (uses cyclesKin)
+  card.querySelectorAll('[data-action="cycles-wave-popup"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const r = _wavePopupHtml(cyclesKin ?? dreamspellKin(currentDate));
+      showInfoPopup(r.title, r.body);
+    });
+  });
+
+  // Cycles tab: ЗАМОК popup (uses cyclesKin)
+  card.querySelectorAll('[data-action="cycles-castle-popup"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const r = _castlePopupHtml(cyclesKin ?? dreamspellKin(currentDate));
+      showInfoPopup(r.title, r.body);
+    });
+  });
+
+  // Cycles tab: ПУЛЬСАР popup (uses cyclesKin)
+  card.querySelectorAll('[data-action="cycles-pulsar-popup"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const k = cyclesKin ?? dreamspellKin(currentDate);
+      const { tone: t } = kinToToneSeal(k);
+      const p = pulsar(t);
+      const wave = wavespell(k);
+      const pos = (k - 1) % 13 + 1;
+      showInfoPopup(`ТОН ${t} — ПУЛЬСАР ${p.name}`,
         `<div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;line-height:2;color:var(--ink-dim)">
-          <p class="section-intro" style="text-transform:none">Замок — большой 52-дневный цикл из 4 волн. Всего 5 замков.</p>
-          <p style="margin-top:8px">▸ ${CASTLE_HINTS[cast].replace(' — ', '</p><p>▸ ')}</p>
-          <p>▸ ЗАМОК ${cast} ИЗ 5 · ВОЛНЫ ${(cast - 1) * 4 + 1}–${cast * 4}</p>
+          <p style="font-style:italic;text-transform:none;font-size:11px;color:var(--ink-faint);margin-bottom:8px">Пульсар — ритмическая группа тонов внутри волны, определяющая «измерение» активности: физическое, ментальное, эмоциональное или духовное. Четыре пульсара охватывают всю волну из 13 тонов.</p>
+          <p>▸ ТОН: ${t} ИЗ 13</p>
+          <p>▸ ПУЛЬСАР: ${p.name}</p>
+          <p style="font-size:11px;text-transform:none;color:var(--ink-faint);margin-top:4px">${p.hint}</p>
+          <p style="margin-top:8px">▸ ПОЗИЦИЯ В ВОЛНЕ: ДЕНЬ ${pos}</p>
         </div>`);
+    });
+  });
+
+  // Cycles tab: KIN click → show kin popup
+  card.querySelectorAll('[data-action="cycles-kin-popup"]').forEach(el => {
+    el.addEventListener('click', () => {
+      showKinPopup(cyclesKin ?? dreamspellKin(currentDate), null);
     });
   });
 
