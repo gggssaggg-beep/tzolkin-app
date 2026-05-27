@@ -296,10 +296,10 @@ function renderNav() {
 }
 
 function navigateToDate(d) {
+  currentDate = d;
   const card = document.getElementById('card');
   card.classList.add('tab-fade');
   setTimeout(() => {
-    currentDate = d;
     render();
     requestAnimationFrame(() => card.classList.remove('tab-fade'));
   }, 150);
@@ -307,13 +307,13 @@ function navigateToDate(d) {
 
 function switchTab(tab) {
   if (tab === currentTab) return;
+  currentTab = tab;
   const card = document.getElementById('card');
   card.classList.add('tab-fade');
   document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
   const btn = document.querySelector(`.tab[data-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
   setTimeout(() => {
-    currentTab = tab;
     render();
     window.scrollTo({ top: 0 });
     requestAnimationFrame(() => card.classList.remove('tab-fade'));
@@ -801,6 +801,8 @@ function renderTzolkin(currentKin) {
 
   html += `<div class="tzolkin-grid-wrapper"><div class="tzolkin-grid">`;
 
+  const kin1Date = addDays(currentDate, -(currentKin - 1));
+
   for (let seal = 1; seal <= 20; seal++) {
     html += `<div class="tzolkin-row-header">${sealImg(seal, 22)}</div>`;
     for (let col = 0; col < 13; col++) {
@@ -817,7 +819,9 @@ function renderTzolkin(currentKin) {
       let cls = `tzolkin-cell ${colorCls}`;
       if (isCurrent) cls += ' current-kin';
       if (isBirth) cls += ' birth-kin';
-      html += `<div class="${cls}" data-tz-kin="${k}" title="Кин ${k}">${mayaDots(tone)}<span class="tz-kin-num">${k}</span></div>`;
+      const d = addDays(kin1Date, k - 1);
+      const titleStr = `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()} · Кин ${k}`;
+      html += `<div class="${cls}" data-tz-kin="${k}" title="${titleStr}">${mayaDots(tone)}<span class="tz-kin-num">${k}</span></div>`;
     }
   }
 
