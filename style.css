@@ -900,10 +900,10 @@ html, body {
 }
 .tzolkin-grid {
   display: grid;
-  grid-template-columns: 32px repeat(13, minmax(30px, 1fr));
+  grid-template-columns: 28px repeat(13, minmax(20px, 1fr));
   grid-template-rows: repeat(20, auto);
   gap: 2px;
-  min-width: 430px;
+  min-width: 300px;
 }
 .tzolkin-header-cell {
   display: flex;
@@ -930,14 +930,14 @@ html, body {
   font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 700;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
   transition: transform .1s, box-shadow .2s;
-  min-height: 52px;
-  aspect-ratio: 1 / 1.2;
+  min-height: 34px;
+  aspect-ratio: 1 / 1.15;
   position: relative;
-  gap: 2px;
-  padding: 2px 0;
+  gap: 1px;
+  padding: 1px 0;
 }
 .tzolkin-cell:hover { transform: scale(1.15); z-index: 2; }
 .tzolkin-cell:active { transform: scale(0.95); }
@@ -962,7 +962,7 @@ html, body {
   z-index: 1;
 }
 
-.tz-kin-num { font-size: 13px; font-weight: 800; }
+.tz-kin-num { font-size: 9px; font-weight: 800; }
 
 /* Tzolkin legend */
 .tzolkin-legend {
@@ -998,19 +998,19 @@ html, body {
 }
 .maya-bar {
   display: block;
-  width: 16px;
-  height: 3px;
+  width: 10px;
+  height: 2px;
   background: currentColor;
   border-radius: 1px;
 }
 .maya-dots {
   display: flex;
-  gap: 2px;
+  gap: 1px;
   justify-content: center;
 }
 .maya-dot {
-  width: 3px;
-  height: 3px;
+  width: 2px;
+  height: 2px;
   border-radius: 50%;
   background: currentColor;
 }
@@ -1368,4 +1368,60 @@ html, body {
   border-top: 1px solid var(--hairline);
   padding-top: 10px;
   font-family: var(--font-body);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Tab transition
+   ───────────────────────────────────────────────────────────── */
+#card {
+  transition: opacity .15s ease, transform .15s ease;
+}
+#card.tab-fade {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Desktop adaptation
+   ───────────────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  #app {
+    max-width: 680px;
+    padding: 0 20px 90px;
+  }
+  .kin-card, .detail-section, .affirmation {
+    padding: 24px 22px;
+  }
+  #nav {
+    padding: 20px 0 16px;
+  }
+  .tzolkin-cell {
+    min-height: 42px;
+  }
+  .tz-kin-num { font-size: 11px; }
+  .maya-bar { width: 14px; height: 3px; }
+  .maya-dot { width: 3px; height: 3px; }
+  .tzolkin-grid {
+    grid-template-columns: 32px repeat(13, minmax(28px, 1fr));
+  }
+  .oracle-cross {
+    gap: 8px;
+  }
+  .cycle-info-card {
+    padding: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  #app {
+    max-width: 800px;
+    padding: 0 28px 90px;
+  }
+  .kin-card, .detail-section, .affirmation {
+    padding: 28px 26px;
+  }
+  .tzolkin-cell {
+    min-height: 48px;
+  }
+  .tz-kin-num { font-size: 12px; }
 }

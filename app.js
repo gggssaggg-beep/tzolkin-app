@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '41';
+const APP_VER = '42';
 let sealsData, tonesData, kinsData, mayaData;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -296,16 +296,28 @@ function renderNav() {
 }
 
 function navigateToDate(d) {
-  currentDate = d;
-  render();
+  const card = document.getElementById('card');
+  card.classList.add('tab-fade');
+  setTimeout(() => {
+    currentDate = d;
+    render();
+    requestAnimationFrame(() => card.classList.remove('tab-fade'));
+  }, 150);
 }
 
 function switchTab(tab) {
+  if (tab === currentTab) return;
+  const card = document.getElementById('card');
+  card.classList.add('tab-fade');
   document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
   const btn = document.querySelector(`.tab[data-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
-  currentTab = tab;
-  render();
+  setTimeout(() => {
+    currentTab = tab;
+    render();
+    window.scrollTo({ top: 0 });
+    requestAnimationFrame(() => card.classList.remove('tab-fade'));
+  }, 150);
 }
 
 
@@ -790,7 +802,7 @@ function renderTzolkin(currentKin) {
   html += `<div class="tzolkin-grid-wrapper"><div class="tzolkin-grid">`;
 
   for (let seal = 1; seal <= 20; seal++) {
-    html += `<div class="tzolkin-row-header">${sealImg(seal, 28)}</div>`;
+    html += `<div class="tzolkin-row-header">${sealImg(seal, 22)}</div>`;
     for (let col = 0; col < 13; col++) {
       const k = seal + col * 20;
       const tone = (k - 1) % 13 + 1;
