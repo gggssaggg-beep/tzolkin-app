@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '46';
+const APP_VER = '47';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -962,8 +962,8 @@ function renderCycles(kin) {
 
 /* ── Maya tone dots ── */
 function mayaDots(tone) {
-  const bars = Math.floor((tone - 1) / 5);
-  const dots = (tone - 1) % 5;
+  const bars = Math.floor(tone / 5);
+  const dots = tone % 5;
   let s = '';
   if (dots > 0) {
     s += '<span class="maya-dots">';
@@ -1026,7 +1026,10 @@ function renderTzolkin(currentKin) {
       if (isMagGate) cls += ' mag-gate';
       if (isSpectralPolar) cls += ' spectral-polar';
       const d = addDays(kin1Date, k - 1);
-      const titleStr = `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()} · Кин ${k}`;
+      let titleStr = `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()} · Кин ${k}`;
+      if (isSpectralPolar) titleStr = `Кин ${k} · Спектральный Полярный — транспортирует галактический спектр`;
+      else if (isMagGate) titleStr = `Кин ${k} · Магнитные Врата — открывает Волну ${Math.ceil(k / 13)}`;
+      else if (gap) titleStr += ' · ГАП';
       html += `<div class="${cls}" data-tz-kin="${k}" title="${titleStr}">${mayaDots(tone)}<span class="tz-kin-num">${k}</span></div>`;
     }
   }
