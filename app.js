@@ -4,6 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
+const APP_VER = '34';
 let sealsData, tonesData, kinsData, mayaData;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -1350,6 +1351,82 @@ function bindCardEvents(kin, tone, seal) {
   });
 }
 
+/* ── Settings modal ── */
+function renderSettings() {
+  const birthDate = localStorage.getItem('birthDate');
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const tzOffset = -new Date().getTimezoneOffset();
+  const tzSign = tzOffset >= 0 ? '+' : '-';
+  const tzHours = Math.floor(Math.abs(tzOffset) / 60);
+  const tzMins  = Math.abs(tzOffset) % 60;
+  const tzLabel = `UTC${tzSign}${tzHours}${tzMins ? ':' + String(tzMins).padStart(2,'0') : ''} — ${tz}`;
+
+  const modal = document.getElementById('settings-content');
+  modal.innerHTML = `
+    <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> НАСТРОЙКИ</h3>
+
+    <div class="detail-section" style="margin-top:12px">
+      <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>ЧАСОВОЙ ПОЯС</h3>
+      <div style="margin-top:10px;font-family:var(--font-mono);font-size:12px;letter-spacing:0.06em;color:var(--ink-dim)">
+        <p>▸ ${tzLabel}</p>
+        <p style="font-size:10px;margin-top:6px;color:var(--ink-faint)">Определяется автоматически из системы. Дата в приложении всегда использует часовой пояс вашего устройства.</p>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span>РАССЫЛКА И РЕЖИМ</h3>
+      <p style="margin-top:10px;font-size:12px;color:var(--ink-dim)">Настройки ежедневной рассылки, режима (Дримспелл / Классический) и часового пояса доступны в боте через кнопку <b>⚙️ Настройки</b>.</p>
+    </div>
+
+    <div class="detail-section">
+      <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span>ДАННЫЕ</h3>
+      <div style="margin-top:10px;font-family:var(--font-mono);font-size:12px;letter-spacing:0.06em;color:var(--ink-dim)">
+        ${birthDate ? `<p>▸ ДАТА РОЖДЕНИЯ: ${birthDate}</p>` : '<p>▸ ДАТА РОЖДЕНИЯ: не задана</p>'}
+      </div>
+      ${birthDate ? `<button id="stg-clear-birth" style="margin-top:10px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;padding:6px 14px;border:1px solid var(--hairline-2);border-radius:20px;background:none;color:var(--ink-faint);cursor:pointer">🗑 СБРОСИТЬ ДАТУ РОЖДЕНИЯ</button>` : ''}
+    </div>
+
+    <div class="detail-section">
+      <h3><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>ОБРАТНАЯ СВЯЗЬ</h3>
+      <p style="margin-top:10px">
+        <a href="https://t.me/U314159" style="color:var(--n-cyan);font-family:var(--font-mono);font-size:13px;text-decoration:none">💬 @U314159</a>
+      </p>
+      <p style="font-size:11px;color:var(--ink-faint);margin-top:6px">Вопросы, предложения, ошибки — пишите напрямую.</p>
+    </div>
+
+    <div class="detail-section">
+      <h3><span class="dot"></span>О ПРИЛОЖЕНИИ</h3>
+      <div style="margin-top:10px;font-family:var(--font-mono);font-size:12px;letter-spacing:0.06em;color:var(--ink-dim)">
+        <p>▸ ВЕРСИЯ: v${APP_VER || '34'}</p>
+        <p>▸ ЦОЛЬКИН (ДРИМСПЕЛЛ): корреляция Аргуэльеса</p>
+        <p>▸ КЛАССИЧЕСКИЙ МАЙЯ: GMT-584283 (Гудман–Томпсон)</p>
+        <p>▸ ИСТОЧНИКИ: lawoftime.org, tortuga1320.com, Maya Decipherment (Стюарт)</p>
+      </div>
+    </div>
+
+    <button class="modal-close" id="settings-close">✕ ЗАКРЫТЬ</button>`;
+
+  document.getElementById('settings-close').addEventListener('click', closeSettingsModal);
+  const clearBirthBtn = document.getElementById('stg-clear-birth');
+  if (clearBirthBtn) {
+    clearBirthBtn.addEventListener('click', () => {
+      localStorage.removeItem('birthDate');
+      haptic('medium');
+      renderSettings();
+    });
+  }
+}
+
+function showSettingsModal() {
+  haptic('selection');
+  document.getElementById('settings-modal').style.display = 'flex';
+  renderSettings();
+}
+
+function closeSettingsModal() {
+  document.getElementById('settings-modal').style.display = 'none';
+}
+
 /* ── Setup permanent events ── */
 function setupEvents() {
   // Run vibration self-test once on first user gesture
@@ -1397,6 +1474,12 @@ function setupEvents() {
   // My Kin button
   document.getElementById('my-kin-btn').addEventListener('click', showMyKinModal);
 
+  // Settings button
+  document.getElementById('settings-btn').addEventListener('click', showSettingsModal);
+  document.getElementById('settings-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('settings-modal')) closeSettingsModal();
+  });
+
   // Music button: click = toggle, long press (600ms) = vibration test
   const musicBtn = document.getElementById('music-btn');
   let musicLongTimer = null;
@@ -1419,6 +1502,7 @@ function setupEvents() {
     if (e.key !== 'Escape') return;
     if (document.getElementById('kin-popup').style.display !== 'none') closeKinPopup();
     else if (document.getElementById('my-kin-modal').style.display !== 'none') closeMyKinModal();
+    else if (document.getElementById('settings-modal').style.display !== 'none') closeSettingsModal();
   });
 
   // Swipe navigation
