@@ -1,6 +1,6 @@
-const CACHE = 'tzolkin-v33';
+const CACHE = 'tzolkin-v34';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'tzolkin.js', 'manifest.json',
-  'data/seals.json', 'data/tones.json', 'data/kin_descriptions.json',
+  'data/seals.json', 'data/tones.json', 'data/kin_descriptions.json', 'data/maya_classic.json',
   ...Array.from({length:20}, (_,i) => `img/seal_${String(i+1).padStart(2,'0')}.png`),
   ...Array.from({length:13}, (_,i) => `img/tone_${String(i+1).padStart(2,'0')}.png`),
   'icon.svg'];

@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-let sealsData, tonesData, kinsData;
+let sealsData, tonesData, kinsData, mayaData;
 let currentDate = new Date();
 let currentTab = 'main';
 
@@ -236,16 +236,18 @@ function toggleMusic() {
 
 /* ── Data loading ── */
 async function loadData() {
-  const [s, t, k] = await Promise.all([
+  const [s, t, k, m] = await Promise.all([
     fetch('data/seals.json').then(r => r.json()),
     fetch('data/tones.json').then(r => r.json()),
     fetch('data/kin_descriptions.json').then(r => r.json()),
+    fetch('data/maya_classic.json').then(r => r.json()),
   ]);
   sealsData = {};
   for (const [id, val] of Object.entries(s.seals)) sealsData[+id] = val;
   tonesData = {};
   for (const [id, val] of Object.entries(t.tones)) tonesData[+id] = val;
   kinsData = k.kins;
+  mayaData = m;
 }
 
 /* ── Date utilities ── */
@@ -1008,6 +1010,134 @@ function bindMyKinEvents() {
   });
 }
 
+/* ── Classical Maya calendar (GMT-584283 correlation) ── */
+function gregToJDN(date) {
+  const Y = date.getFullYear(), M = date.getMonth() + 1, D = date.getDate();
+  const a = Math.floor((14 - M) / 12);
+  const y = Y + 4800 - a, m = M + 12 * a - 3;
+  return D + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+}
+
+function classicMayaDate(date) {
+  const jdn = gregToJDN(date);
+  const dc = jdn - 584283; // days since Long Count 0.0.0.0.0 = 4 Ajaw 8 Kumk'u
+
+  // Tzolk'in: creation = 4 Ajaw (sign 20, num 4)
+  const tzolkinNum  = ((dc % 13) + 3 + 1300) % 13 + 1;
+  const tzolkinSign = ((dc % 20) + 19 + 2000) % 20 + 1;
+
+  // Haab: creation = 8 Kumk'u = position 348 in 365-day cycle
+  const haabPos = ((dc + 348) % 365 + 365) % 365;
+  const monthIdx   = haabPos < 360 ? Math.floor(haabPos / 20) : 18; // 0-17 = Pop..Kumk'u, 18 = Wayeb
+  const dayInMonth = haabPos < 360 ? haabPos % 20 : haabPos - 360;  // 0-based
+
+  // Long Count
+  const baktun = Math.floor(dc / 144000);
+  const r1 = dc % 144000;
+  const katun = Math.floor(r1 / 7200);
+  const r2 = r1 % 7200;
+  const tun = Math.floor(r2 / 360);
+  const r3 = r2 % 360;
+  const winal = Math.floor(r3 / 20);
+  const kin = r3 % 20;
+
+  return { dc, tzolkinNum, tzolkinSign, monthIdx, dayInMonth, baktun, katun, tun, winal, kin };
+}
+
+function renderMayaClassic() {
+  if (!mayaData) return '<div class="kin-card"><p>Загрузка данных…</p></div>';
+
+  const md = classicMayaDate(currentDate);
+  const signData  = mayaData.tzolkin.day_signs[md.tzolkinSign - 1];
+  const numData   = mayaData.tzolkin.numbers.list[md.tzolkinNum - 1];
+  const monthData = mayaData.haab.months[md.monthIdx];
+
+  const longCount = `${md.baktun}.${md.katun}.${md.tun}.${md.winal}.${md.kin}`;
+
+  const dirColor = { 'Восток': 'red', 'Север': 'cyan', 'Запад': 'blue', 'Юг': 'amber' };
+  const color = dirColor[signData.direction] || 'cyan';
+
+  let html = '';
+
+  // ── Main card ──
+  html += `<div class="kin-card">
+    <div class="eyebrow" style="text-align:center;margin-bottom:10px;letter-spacing:0.18em">КЛАССИЧЕСКИЙ МАЙЯ · GMT 584283</div>
+    <div style="text-align:center;margin-bottom:6px">${mayaDots(md.tzolkinNum)}</div>
+    <div class="kin-number c-${color}" style="font-size:52px;text-align:center;margin-bottom:4px">${md.tzolkinNum}</div>
+    <div class="kin-title" style="font-size:22px;text-align:center;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">${signData.name_yucatec}</div>
+    <div class="kin-subtitle" style="text-align:center;margin-bottom:12px">${signData.meaning_ru}</div>
+    <div style="font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+      <p>▸ К'ИЧЕ': ${md.tzolkinNum} ${signData.name_kiche}</p>
+      <p>▸ НАХУАТЛЬ: ${md.tzolkinNum} ${signData.name_nahuatl}</p>
+      <p>▸ КЛАССИЧЕСКОЕ: ${signData.name_classic_proto}</p>
+      <p style="margin-top:10px">▸ ХААБ: ${md.dayInMonth} ${monthData.name} (${monthData.name_ru})</p>
+      <p>▸ ДОЛГИЙ СЧЁТ: ${longCount}</p>
+      <p>▸ КРУГ КАЛЕНДАРЯ: ${md.tzolkinNum} ${signData.name_yucatec} ${md.dayInMonth} ${monthData.name}</p>
+    </div>
+  </div>`;
+
+  // ── Sign block ──
+  html += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-${color});box-shadow:0 0 8px var(--n-${color})"></span>
+      ЗНАК ${md.tzolkinSign} · ${signData.name_yucatec}</h3>
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+      <p>▸ СУТЬ: ${signData.meaning_ru}</p>
+      <p>▸ НАПРАВЛЕНИЕ: ${signData.direction}</p>
+      <p>▸ ЭЛЕМЕНТ: ${signData.element}</p>
+      <p>▸ ПОКРОВИТЕЛЬ: ${signData.patron_deity}</p>
+      <p>▸ ГЛИФ: ${signData.glyph_description}</p>
+    </div>
+    <p style="margin-top:10px">${signData.qualities_ru}</p>
+    ${signData.notes_scholarly ? `<p style="font-size:11px;color:var(--ink-faint);margin-top:8px;font-style:italic">${signData.notes_scholarly}</p>` : ''}
+  </div>`;
+
+  // ── Shadow ──
+  if (signData.shadow_ru) html += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span>ТЕНЬ ЗНАКА</h3>
+    <p>${signData.shadow_ru}</p>
+  </div>`;
+
+  // ── Number block ──
+  html += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>
+      ЧИСЛО ${md.tzolkinNum} — ${numData.name_ru}</h3>
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+      <p>▸ К'ИЧЕ': ${numData.name_kiche}</p>
+      <p>▸ НАХУАТЛЬ: ${numData.name_nahuatl}</p>
+      <p>▸ КАЧЕСТВО: ${numData.quality_ru}</p>
+    </div>
+  </div>`;
+
+  // ── Haab month block ──
+  html += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span>
+      ХААБ: ${monthData.name} (${monthData.name_ru})</h3>
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+      <p>▸ ДЕНЬ ${md.dayInMonth} ИЗ ${monthData.is_wayeb ? 4 : 19} В МЕСЯЦЕ</p>
+      <p>▸ МЕСЯЦ ${md.monthIdx + 1} ИЗ 19</p>
+      <p>▸ ЗНАЧЕНИЕ: ${monthData.meaning_ru}</p>
+    </div>
+    <p style="margin-top:10px">Хааб — 365-дневный гражданский год майя: 18 месяцев по 20 дней + 5-дневный Вайеб.</p>
+  </div>`;
+
+  // ── vs Dreamspell ──
+  const dsKin = dreamspellKin(currentDate);
+  const { tone: dsT, seal: dsS } = kinToToneSeal(dsKin);
+  const dsSeal = sealsData[dsS];
+  const dsTone = tonesData[dsT];
+  html += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>VS ДРИМСПЕЛЛ</h3>
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+      <p>▸ КЛАССИЧЕСКИЙ МАЙЯ: ${md.tzolkinNum} ${signData.name_yucatec}</p>
+      <p>▸ ДРИМСПЕЛЛ: КИН ${dsKin} · ТОН ${dsT} ${dsTone.name_ru} · ${dsSeal.name_ru}</p>
+      <p>▸ РАЗНИЦА: ≈57 ДНЕЙ (2026)</p>
+    </div>
+    <p style="font-size:11px;color:var(--ink-faint);margin-top:8px">Дримспелл (Х. Аргуэльес, 1992) — авторская New Age-интерпретация, не классический счёт. Живая традиция К'иче'-майя Гватемалы сохранила непрерывный счёт, совпадающий с корреляцией GMT.</p>
+  </div>`;
+
+  return html;
+}
+
 /* ── Render dispatcher ── */
 function render() {
   const kin = dreamspellKin(currentDate);
@@ -1029,6 +1159,7 @@ function render() {
       break;
     case 'tzolkin': card.innerHTML = renderTzolkin(kin); break;
     case 'personal': showMyKinModal(); card.innerHTML = ''; break;
+    case 'maya': card.innerHTML = renderMayaClassic(); break;
   }
 
   // Bind dynamic events after render

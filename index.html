@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>window._vibrate = navigator.vibrate ? navigator.vibrate.bind(navigator) : null;</script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="style.css?v=33">
+<link rel="stylesheet" href="style.css?v=34">
 </head>
 <body>
 <canvas id="particles"></canvas>
@@ -42,6 +42,7 @@
     <button class="tab" data-tab="cycles"><span class="tab-icon">◌</span>ЦИКЛЫ</button>
     <button class="tab" data-tab="tzolkin"><span class="tab-icon">▦</span>ЦОЛЬКИН</button>
     <button class="tab" data-tab="personal"><span class="tab-icon">☉</span>МОЙ</button>
+    <button class="tab" data-tab="maya"><span class="tab-icon">𓅓</span>МАЙЯ</button>
   </nav>
 </div>
 
@@ -53,7 +54,7 @@
 </div>
 
 <script>
-const APP_VER = '33';
+const APP_VER = '34';
 if (localStorage.getItem('appVer') !== APP_VER) {
   localStorage.setItem('appVer', APP_VER);
   localStorage.removeItem('vibTested'); // re-run vib test on update
@@ -66,6 +67,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 </script>
-<script type="module" src="app.js?v=33"></script>
+<script type="module" src="app.js?v=34"></script>
 </body>
 </html>

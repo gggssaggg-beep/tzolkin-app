@@ -850,7 +850,7 @@ html, body {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   padding: 10px 8px env(safe-area-inset-bottom, 8px);
   background: linear-gradient(180deg, transparent, rgba(5, 0, 16, 0.92) 30%);
@@ -864,8 +864,8 @@ html, body {
   border: 1px solid transparent;
   background: none;
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.18em;
+  font-size: 8px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-faint);
   cursor: pointer;
