@@ -58,7 +58,11 @@
 const APP_VER = '48';
 if (localStorage.getItem('appVer') !== APP_VER) {
   localStorage.setItem('appVer', APP_VER);
-  localStorage.removeItem('vibTested'); // re-run vib test on update
+  localStorage.removeItem('vibTested');
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+    caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
+  }
 }
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').then(reg => {

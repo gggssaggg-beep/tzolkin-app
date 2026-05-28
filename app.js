@@ -245,20 +245,15 @@ function toggleMusic() {
 
 /* ── Data loading ── */
 async function loadData() {
-  const [s, t, k, m, dt] = await Promise.all([
-    fetch('data/seals.json').then(r => r.json()),
-    fetch('data/tones.json').then(r => r.json()),
-    fetch('data/kin_descriptions.json').then(r => r.json()),
-    fetch('data/maya_classic.json').then(r => r.json()),
-    fetch('data/dreamspell_texts.json').then(r => r.json()),
-  ]);
+  const f = (url) => fetch(url).then(r => { if (!r.ok) throw new Error(url); return r.json(); });
+  const [s, t, k, m] = await Promise.all([f('data/seals.json'), f('data/tones.json'), f('data/kin_descriptions.json'), f('data/maya_classic.json')]);
   sealsData = {};
   for (const [id, val] of Object.entries(s.seals)) sealsData[+id] = val;
   tonesData = {};
   for (const [id, val] of Object.entries(t.tones)) tonesData[+id] = val;
   kinsData = k.kins;
   mayaData = m;
-  dsTexts = dt;
+  try { dsTexts = await f('data/dreamspell_texts.json'); } catch (_) { dsTexts = {}; }
 }
 
 /* ── Share card generator ── */
@@ -835,6 +830,14 @@ function updateCyclesActive() {
     marker.style.width = cr.width + 'px';
     marker.style.height = cr.height + 'px';
   });
+
+  // Update pulsar canvas when tone changes
+  drawPulsarCanvas(tone);
+
+  // Sync wave kin list highlight
+  document.querySelectorAll('.wave-kin-row').forEach(r => {
+    r.classList.toggle('current', +r.dataset.waveKin === kin);
+  });
 }
 
 function positionCycleMarkers() {
@@ -950,15 +953,13 @@ function renderCycles(kin) {
   </div>`;
 
   // Wave kins with harmonic grouping
-  const wave = wavespell(kin);
-  const waveFirst = (wave - 1) * 13 + 1;
-  const { seal: waveSeal } = kinToToneSeal(waveFirst);
-  const wsi = sealsData[waveSeal];
+  const { seal: waveSeal2 } = kinToToneSeal(waveFirst);
+  const wsi2 = sealsData[waveSeal2];
   const p = pulsar(tone);
   const pulsarData = dsTexts?.pulsars?.list?.find(pl => pl.tones.includes(tone));
 
   html += `<div class="kin-card">
-    <h3 class="card-title"><span class="dot"></span> ВОЛНА ${wave} — ${sealImg(waveSeal, 22)} ${wsi.name_ru}</h3>
+    <h3 class="card-title"><span class="dot"></span> ВОЛНА ${wave} — ${sealImg(waveSeal2, 22)} ${wsi2.name_ru}</h3>
     <div style="margin-top:8px">`;
   for (let i = 0; i < 13; i++) {
     const wk = waveFirst + i;
@@ -1862,13 +1863,18 @@ function bindCardEvents(kin, tone, seal) {
     });
   });
 
-  // Wave tab: kin row clicks — navigate and scroll to top
+  // Wave kin row clicks — update cyclesKin + scroll to tone strip
   card.querySelectorAll('.wave-kin-row[data-wave-kin]').forEach(el => {
     el.addEventListener('click', () => {
       const targetKin = +el.dataset.waveKin;
-      const d = dateForKin(targetKin);
-      navigateToDate(d);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (currentTab === 'cycles') {
+        cyclesKin = targetKin;
+        haptic('light');
+        updateCyclesActive();
+      } else {
+        navigateToDate(dateForKin(targetKin));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     });
   });
 
@@ -1934,7 +1940,12 @@ function bindCardEvents(kin, tone, seal) {
           cyclesKin = snapped;
         }
         if (unit !== 1) haptic('medium');
-        updateCyclesActive(); // full update with all strips
+        updateCyclesActive();
+        // Re-render wave kin list when wave/castle changes
+        if (unit === 13 || unit === 52) {
+          render();
+          requestAnimationFrame(positionCycleMarkers);
+        }
       } else {
         dragUnit = 0;
       }
@@ -2287,9 +2298,14 @@ function initParticles() {
 /* ── Init ── */
 async function init() {
   initParticles();
-  await loadData();
-  setupEvents();
-  render();
+  try {
+    await loadData();
+    setupEvents();
+    render();
+  } catch (e) {
+    const card = document.getElementById('card');
+    if (card) card.innerHTML = `<div class="kin-card" style="padding:20px"><h3 style="color:#e8e2ff">Ошибка</h3><p style="color:#aaa;margin:10px 0;word-break:break-all">${e.message}<br><br>${(e.stack||'').split('\n').slice(0,3).join('<br>')}</p><button onclick="location.reload()" style="margin-top:12px;padding:10px 20px;border:1px solid rgba(180,160,255,0.3);border-radius:10px;background:rgba(125,223,239,0.1);color:#7ddfef;cursor:pointer;font-size:14px">Перезагрузить</button></div>`;
+  }
 }
 
 init();
