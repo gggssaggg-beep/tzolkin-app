@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '48';
+const APP_VER = '49';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -2295,6 +2295,23 @@ function initParticles() {
   requestAnimationFrame(frame);
 }
 
+/* ── Welcome popup (once) ── */
+function showWelcome() {
+  const key = 'welcomeVer';
+  if (localStorage.getItem(key) === APP_VER) return;
+  localStorage.setItem(key, APP_VER);
+  setTimeout(() => {
+    showInfoPopup('ЦОЛЬКИН', `
+      <div style="text-align:center;margin-bottom:14px">
+        <div style="font-size:36px;margin-bottom:8px">✦</div>
+        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.2em;color:var(--ink-faint)">КИН ДНЯ · DREAMSPELL</div>
+      </div>
+      <p style="font-size:14px;line-height:1.6;color:var(--ink);margin-bottom:14px">Каждый день несёт уникальную энергию в 260-дневном цикле Цолькин. Листайте дни, изучайте печати и тоны.</p>
+      <p style="font-size:13px;line-height:1.5;color:var(--ink-dim);margin-bottom:14px">Сейчас включён режим <b style="color:var(--n-cyan)">БАЗА</b> — компактный вид для ежедневного использования.</p>
+      <p style="font-size:13px;line-height:1.5;color:var(--ink-dim)">Для полной информации (печать, тон, земная семья, архетип) переключите на <b style="color:var(--n-violet)">ПРОФИ</b> в настройках <span style="font-size:16px">⚙</span></p>`);
+  }, 600);
+}
+
 /* ── Init ── */
 async function init() {
   initParticles();
@@ -2302,6 +2319,7 @@ async function init() {
     await loadData();
     setupEvents();
     render();
+    showWelcome();
   } catch (e) {
     const card = document.getElementById('card');
     if (card) card.innerHTML = `<div class="kin-card" style="padding:20px"><h3 style="color:#e8e2ff">Ошибка</h3><p style="color:#aaa;margin:10px 0;word-break:break-all">${e.message}<br><br>${(e.stack||'').split('\n').slice(0,3).join('<br>')}</p><button onclick="location.reload()" style="margin-top:12px;padding:10px 20px;border:1px solid rgba(180,160,255,0.3);border-radius:10px;background:rgba(125,223,239,0.1);color:#7ddfef;cursor:pointer;font-size:14px">Перезагрузить</button></div>`;
