@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '49';
+const APP_VER = '50';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -231,7 +231,6 @@ function toggleMusic() {
     musicGain.gain.linearRampToValueAtTime(0.55, audioCtx.currentTime + 2.5);
     musicPlaying = true;
     btn.classList.add('playing');
-    btn.textContent = '♪';
   } else {
     musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
     musicGain.gain.setValueAtTime(musicGain.gain.value, audioCtx.currentTime);
@@ -239,7 +238,6 @@ function toggleMusic() {
     setTimeout(() => _audioEl && _audioEl.pause(), 1600);
     musicPlaying = false;
     btn.classList.remove('playing');
-    btn.textContent = '♫';
   }
 }
 
@@ -418,6 +416,68 @@ function isGap(kin) {
   return info ? !!info.is_gap : false;
 }
 
+/** Parse a YYYY-MM-DD string into a real local Date, or null if invalid/partial.
+ * Guards the whole app from Invalid Date poisoning currentDate (the freeze bug). */
+function parseInputDate(v) {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const [y, m, d] = v.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  // reject overflow like 2026-02-31 (JS would silently roll it over)
+  if (isNaN(dt.getTime()) || dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  return dt;
+}
+
+/** True if a day's kin resonates with the birth kin (same kin/seal/tone or an
+ * oracle relation). Used to hop between personally-significant days. */
+function dayResonatesWithBirth(dayKin, bKin) {
+  if (dayKin === bKin) return true;
+  const a = kinToToneSeal(dayKin), b = kinToToneSeal(bKin);
+  if (a.seal === b.seal || a.tone === b.tone) return true;
+  const bo = oracle(bKin);
+  if (dayKin === bo.guide || dayKin === bo.analog || dayKin === bo.antipode || dayKin === bo.hidden) return true;
+  const ao = oracle(dayKin);
+  if (bKin === ao.guide || bKin === ao.analog || bKin === ao.antipode || bKin === ao.hidden) return true;
+  return false;
+}
+
+/** Nearest resonant day from `from` in direction dir (+1/-1), or null. */
+function findResonantDay(from, dir, bKin) {
+  let d = from;
+  for (let i = 0; i < 260; i++) {
+    d = addDays(d, dir);
+    if (dayResonatesWithBirth(dreamspellKin(d), bKin)) return d;
+  }
+  return null;
+}
+
+function birthKinOrNull() {
+  const s = localStorage.getItem('birthDate');
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return isNaN(dt.getTime()) ? null : dreamspellKin(dt);
+}
+
+/** Unified date stepper for arrows + swipe. On the personal tab it hops to the
+ * next/prev resonant day; elsewhere it's ±1 day. */
+function stepDate(dir) {
+  haptic('light');
+  if (currentTab === 'personal') {
+    const bKin = birthKinOrNull();
+    if (bKin != null) {
+      const found = findResonantDay(currentDate, dir, bKin);
+      currentDate = found || addDays(currentDate, dir);
+    } else {
+      currentDate = addDays(currentDate, dir);
+    }
+    cyclesKin = null;
+  } else {
+    currentDate = addDays(currentDate, dir);
+    cyclesKin = (currentTab === 'cycles') ? dreamspellKin(currentDate) : null;
+  }
+  render();
+}
+
 /**
  * Calculate the date for a given kin number relative to a reference date/kin.
  * We find the nearest occurrence (past or future within +-260 days).
@@ -429,6 +489,87 @@ function dateForKin(targetKin) {
   while (diff < -130) diff += 260;
   while (diff > 129) diff += -260;
   return addDays(currentDate, diff);
+}
+
+/* ── Retention engine (Scenario 3): journal + streak + favorites ──
+ * The app was a "single-session brochure": look up your kin once, leave forever.
+ * These give a daily reason to return — all client-side localStorage, no backend:
+ *   • day notes — a private diary entry tied to each day's kin
+ *   • streak    — consecutive days opened, the dopamine loop
+ *   • favorites — star resonant days to revisit
+ */
+function dateKey(d) {
+  // local Y-M-D, stable regardless of timezone/clock
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const NOTE_PREFIX = 'note:';
+function getNote(d) { return localStorage.getItem(NOTE_PREFIX + dateKey(d)) || ''; }
+function setNote(d, text) {
+  const k = NOTE_PREFIX + dateKey(d);
+  if (text.trim()) localStorage.setItem(k, text);
+  else localStorage.removeItem(k);
+}
+
+function getFavorites() {
+  try { return JSON.parse(localStorage.getItem('favorites') || '[]'); }
+  catch (_) { return []; }
+}
+function isFavorite(d) { return getFavorites().includes(dateKey(d)); }
+function toggleFavorite(d) {
+  const key = dateKey(d);
+  const favs = getFavorites();
+  const i = favs.indexOf(key);
+  if (i >= 0) favs.splice(i, 1); else favs.push(key);
+  localStorage.setItem('favorites', JSON.stringify(favs));
+  return i < 0; // true if now favorited
+}
+
+/** Update the open-streak. Call once per session against the REAL today. */
+function updateStreak() {
+  let s;
+  try { s = JSON.parse(localStorage.getItem('streak') || '{}'); } catch (_) { s = {}; }
+  const today = dateKey(new Date());
+  if (s.last === today) return s;            // already counted today
+  const yesterday = dateKey(addDays(new Date(), -1));
+  s.count = (s.last === yesterday) ? (s.count || 0) + 1 : 1;
+  s.best = Math.max(s.best || 0, s.count);
+  s.last = today;
+  localStorage.setItem('streak', JSON.stringify(s));
+  return s;
+}
+function getStreak() {
+  try { return JSON.parse(localStorage.getItem('streak') || '{}').count || 0; }
+  catch (_) { return 0; }
+}
+
+const SVG_FLAME = '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M12 2c1.5 3 .5 4.5-1 6.5C9 11 8 12.5 8 15a4 4 0 0 0 8 0c0-1.6-.6-2.8-1.3-3.8.9.4 1.8 1.3 2.3 2.6.7-1 1-2.2 1-3.3 0-3.2-2.2-5.6-3.5-7 .2 1.8-.7 3-2 3.4C12 6 13 4 12 2z"/></svg>';
+const SVG_STAR_OUTLINE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.2l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>';
+const SVG_STAR_FILL = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 3.2l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>';
+
+/** Journal card for the main tab: streak chip, favorite star, day note. */
+function renderJournal() {
+  const streak = getStreak();
+  const fav = isFavorite(currentDate);
+  const note = getNote(currentDate);
+  const streakChip = streak > 1
+    ? `<span class="streak-chip" title="Дней подряд в приложении">${SVG_FLAME} ${streak}</span>`
+    : '';
+  return `<div class="kin-card journal-card">
+    <h3 class="card-title">
+      <span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>
+      ДНЕВНИК ДНЯ ${streakChip}
+      <button class="fav-star ${fav ? 'on' : ''}" data-action="toggle-fav" aria-label="Отметить день" style="margin-left:auto">${fav ? SVG_STAR_FILL : SVG_STAR_OUTLINE}</button>
+    </h3>
+    <p class="section-intro" style="border:none;padding:0;margin:0 0 8px">Личная заметка к энергии этого Кина. Хранится только на вашем устройстве.</p>
+    <textarea id="day-note" class="day-note" rows="3" maxlength="2000"
+      placeholder="Что произошло? Что почувствовали? Как откликнулась энергия дня…">${escapeHtml(note)}</textarea>
+    <div class="note-status" id="note-status"></div>
+  </div>`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 /* ── Navigation ── */
@@ -1164,20 +1305,21 @@ function renderPersonal() {
   }
 
   if (connections.length === 0) {
-    connections.push({ icon: '·', text: 'Прямых связей с текущим днём не найдено.' });
-  }
-
-  // Next personal kin date
-  let nextDate = addDays(currentDate, 1);
-  let nextKin = dreamspellKin(nextDate);
-  let safety = 0;
-  while (nextKin !== bKin && safety < 270) {
-    nextDate = addDays(nextDate, 1);
-    nextKin = dreamspellKin(nextDate);
-    safety++;
+    connections.push({ icon: '·', text: 'Прямых связей с этим днём не найдено.' });
   }
 
   return `<div class="kin-card">
+    <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span> СВЯЗЬ С ДНЁМ · КИН ${todayKin}</h3>
+    <div class="spread" style="margin-bottom:8px">
+      <span class="display c-cyan" style="font-size:13px">${formatDateRu(currentDate).toUpperCase()}</span>
+      <span class="eyebrow muted">${kinsData[String(todayKin)]?.title || ''}</span>
+    </div>
+    <div class="connection-list">
+      ${connections.map(c => `<div class="connection-item"><span class="connection-icon">${c.icon}</span><span class="connection-text">${c.text}</span></div>`).join('')}
+    </div>
+    <p class="section-intro" style="margin-top:12px;border:none;padding:0">Стрелки ◀ ▶ и свайп листают к ближайшим дням, резонирующим с вашим Кином.</p>
+  </div>
+  <div class="kin-card">
     <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> МОЙ КИН</h3>
     <div style="text-align:center;margin-bottom:14px">
       <div style="margin-bottom:6px">${toneImg(bTone, 32)}</div>
@@ -1258,16 +1400,6 @@ function renderPersonal() {
           </div></div>`;
       }).join('');
     })()}</div>` : ''}
-  </div>
-  <div class="kin-card">
-    <h3 class="card-title" style="font-size:11px"><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span> СВЯЗЬ С ТЕКУЩИМ ДНЁМ</h3>
-    <div class="connection-list">
-      ${connections.map(c => `<div class="connection-item"><span class="connection-icon">${c.icon}</span><span class="connection-text">${c.text}</span></div>`).join('')}
-    </div>
-    <div class="spread" style="margin-top:14px">
-      <span class="eyebrow">СЛЕДУЮЩИЙ ВАШ КИН</span>
-      <span class="display" style="font-size:12px">${formatDateRu(nextDate).toUpperCase()}</span>
-    </div>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:12px">
     <button class="birth-nav-btn" id="personal-goto-kin" style="flex:1;padding:12px;border:1px solid var(--hairline);border-radius:12px;background:rgba(120,60,220,0.15);color:var(--ink);font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;cursor:pointer">◉ ПОДРОБНЕЕ О КИНЕ ${bKin}</button>
@@ -1617,6 +1749,9 @@ function drawPulsarCanvas(activeTone) {
 
 /* ── Render dispatcher ── */
 function render() {
+  // Defense-in-depth: an Invalid Date here would throw in renderNav and freeze
+  // every subsequent render. Never let that happen — fall back to today.
+  if (!(currentDate instanceof Date) || isNaN(currentDate.getTime())) currentDate = new Date();
   const kin = dreamspellKin(currentDate);
   const { tone, seal } = kinToToneSeal(kin);
   const card = document.getElementById('card');
@@ -1626,7 +1761,8 @@ function render() {
     case 'main':
       card.innerHTML = renderMain(kin, tone, seal)
         + renderOracle(kin)
-        + renderMoon();
+        + renderMoon()
+        + renderJournal();
       break;
     case 'cycles':
       if (cyclesKin === null) cyclesKin = kin;
@@ -1669,6 +1805,33 @@ function bindCardEvents(kin, tone, seal) {
   // Share button
   card.querySelectorAll('[data-action="share-kin"]').forEach(el => {
     el.addEventListener('click', () => { haptic('medium'); shareKin(); });
+  });
+
+  // Journal: day note (debounced autosave) + favorite star
+  const noteEl = document.getElementById('day-note');
+  if (noteEl) {
+    const status = document.getElementById('note-status');
+    let saveTimer = null;
+    const noteDate = new Date(currentDate); // capture: currentDate may change before timer fires
+    noteEl.addEventListener('input', () => {
+      if (status) status.textContent = 'сохраняю…';
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        setNote(noteDate, noteEl.value);
+        if (status) {
+          status.textContent = '✓ сохранено';
+          setTimeout(() => { if (status) status.textContent = ''; }, 1500);
+        }
+      }, 500);
+    });
+  }
+  card.querySelectorAll('[data-action="toggle-fav"]').forEach(el => {
+    el.addEventListener('click', () => {
+      haptic('medium');
+      const now = toggleFavorite(currentDate);
+      el.classList.toggle('on', now);
+      el.innerHTML = now ? SVG_STAR_FILL : SVG_STAR_OUTLINE;
+    });
   });
 
   // Status badge popups
@@ -2129,53 +2292,53 @@ function setupEvents() {
     else render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
-  document.getElementById('prev').addEventListener('click', () => {
-    haptic('light');
-    currentDate = addDays(currentDate, -1);
-    cyclesKin = (currentTab === 'cycles') ? dreamspellKin(currentDate) : null;
-    render();
-  });
-  document.getElementById('next').addEventListener('click', () => {
-    haptic('light');
-    currentDate = addDays(currentDate, 1);
-    cyclesKin = (currentTab === 'cycles') ? dreamspellKin(currentDate) : null;
-    render();
-  });
+  document.getElementById('prev').addEventListener('click', () => stepDate(-1));
+  document.getElementById('next').addEventListener('click', () => stepDate(1));
 
-  const datePicker = document.getElementById('date-picker');
   document.getElementById('date-display').addEventListener('click', () => {
     const curKin = dreamspellKin(currentDate);
     showInfoPopup('НАВИГАЦИЯ', `
       <div style="margin-bottom:14px">
         <div class="eyebrow" style="margin-bottom:6px">ПЕРЕЙТИ К ДАТЕ</div>
-        <input type="date" id="nav-date-input" value="${currentDate.toISOString().slice(0, 10)}" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--hairline-2);border-radius:10px;color:var(--ink);font-family:var(--font-mono);font-size:14px;padding:10px;outline:none">
+        <input type="date" id="nav-date-input" value="${dateKey(currentDate)}" min="1900-01-01" max="2099-12-31" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--hairline-2);border-radius:10px;color:var(--ink);font-family:var(--font-mono);font-size:14px;padding:10px;outline:none">
       </div>
-      <div>
+      <div style="margin-bottom:12px">
         <div class="eyebrow" style="margin-bottom:6px">ПЕРЕЙТИ К КИНУ (1–260)</div>
-        <div style="display:flex;gap:8px">
-          <input type="number" id="nav-kin-input" min="1" max="260" value="${curKin}" placeholder="1–260" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--hairline-2);border-radius:10px;color:var(--ink);font-family:var(--font-mono);font-size:14px;padding:10px;outline:none;-moz-appearance:textfield">
-          <button id="nav-kin-go" style="width:48px;border:1px solid var(--hairline);border-radius:10px;background:rgba(125,223,239,0.1);color:var(--n-cyan);font-size:20px;cursor:pointer">→</button>
-        </div>
-      </div>`);
+        <input type="number" id="nav-kin-input" min="1" max="260" value="${curKin}" placeholder="1–260" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid var(--hairline-2);border-radius:10px;color:var(--ink);font-family:var(--font-mono);font-size:14px;padding:10px;outline:none;-moz-appearance:textfield">
+      </div>
+      <div id="nav-error" class="nav-error"></div>
+      <button id="nav-go" class="nav-go-btn">ПЕРЕЙТИ</button>`);
     setTimeout(() => {
-      document.getElementById('nav-date-input')?.addEventListener('change', (e) => {
-        const [y, m, d] = e.target.value.split('-').map(Number);
-        currentDate = new Date(y, m - 1, d);
+      const dateEl = document.getElementById('nav-date-input');
+      const kinEl = document.getElementById('nav-kin-input');
+      const errEl = document.getElementById('nav-error');
+      // Track which field the user last edited — that one wins (the other clears),
+      // so "дата + кин" is never ambiguous.
+      let lastEdited = 'date';
+      const showErr = (msg) => { if (errEl) errEl.textContent = msg; };
+      dateEl?.addEventListener('input', () => { lastEdited = 'date'; if (kinEl) kinEl.value = ''; showErr(''); });
+      kinEl?.addEventListener('input', () => { lastEdited = 'kin'; if (dateEl) dateEl.value = ''; showErr(''); });
+
+      const go = () => {
+        if (lastEdited === 'kin') {
+          const n = parseInt(kinEl?.value, 10);
+          if (!Number.isInteger(n) || n < 1 || n > 260) {
+            showErr('Кин должен быть числом от 1 до 260'); // #4: 0 / 287 не ломают, а подсвечиваются
+            return;
+          }
+          currentDate = dateForKin(n);
+        } else {
+          const dt = parseInputDate(dateEl?.value);
+          if (!dt) { showErr('Введите корректную дату'); return; } // #2: Invalid Date больше не доходит до render
+          currentDate = dt;
+        }
         cyclesKin = null;
         closeKinPopup();
         render();
-      });
-      const goKin = () => {
-        const n = parseInt(document.getElementById('nav-kin-input')?.value, 10);
-        if (n >= 1 && n <= 260) {
-          currentDate = dateForKin(n);
-          cyclesKin = null;
-          closeKinPopup();
-          render();
-        }
       };
-      document.getElementById('nav-kin-go')?.addEventListener('click', goKin);
-      document.getElementById('nav-kin-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') goKin(); });
+      document.getElementById('nav-go')?.addEventListener('click', go);
+      dateEl?.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+      kinEl?.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
     }, 50);
   });
 
@@ -2214,14 +2377,25 @@ function setupEvents() {
     else if (document.getElementById('settings-modal').style.display !== 'none') closeSettingsModal();
   });
 
-  // Swipe navigation
+  // Swipe navigation — horizontal swipe = ±1 day. Guards against vertical
+  // scroll (only fires when the gesture is clearly horizontal) and against
+  // multi-touch (pinch/zoom). Disabled on tabs with their own gestures.
   const card = document.getElementById('card');
-  let startX = 0;
-  card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+  let sx = 0, sy = 0, swipeable = false;
+  card.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { swipeable = false; return; }
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    swipeable = currentTab !== 'tzolkin' && currentTab !== 'cycles';
+  }, { passive: true });
   card.addEventListener('touchend', e => {
-    if (currentTab === 'tzolkin' || currentTab === 'cycles') return;
-    const diff = e.changedTouches[0].clientX - startX;
-    if (Math.abs(diff) > 60) { haptic('light'); currentDate = addDays(currentDate, diff > 0 ? -1 : 1); cyclesKin = null; render(); }
+    if (!swipeable || e.changedTouches.length !== 1) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    // horizontal intent: far enough sideways AND mostly horizontal
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      stepDate(dx > 0 ? -1 : 1); // personal tab → resonant hop; else ±1 day
+    }
   }, { passive: true });
 
   // Telegram WebApp integration — do NOT override our neon theme colors
@@ -2317,6 +2491,7 @@ async function init() {
   initParticles();
   try {
     await loadData();
+    updateStreak();
     setupEvents();
     render();
     showWelcome();

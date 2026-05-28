@@ -114,6 +114,23 @@ html, body {
   display: grid; place-items: center;
 }
 .nav-btn:active { background: rgba(255,255,255,.1); transform: scale(.92); }
+
+/* Inline SVG icons — render identically on every OS (no Unicode tofu) */
+.ic {
+  width: 20px; height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  display: block;
+}
+.tab-icon svg {
+  width: 18px; height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  display: block;
+}
 .today-btn {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -901,10 +918,15 @@ html, body {
 }
 .tzolkin-grid {
   display: grid;
-  grid-template-columns: 28px repeat(13, minmax(20px, 1fr));
+  /* Cells stretch to fill width, but never shrink below a readable floor
+     (~size of a КИН/seal icon). Below that the wrapper scrolls horizontally
+     instead of collapsing into illegible specks on narrow (<360px) screens. */
+  --tz-cell-min: 26px;
+  grid-template-columns: 28px repeat(13, minmax(var(--tz-cell-min), 1fr));
   grid-template-rows: repeat(20, auto);
   gap: 2px;
-  min-width: 300px;
+  /* 28px row-header + 13×min cell + 14 gaps → the hard floor before scroll */
+  min-width: calc(28px + 13 * var(--tz-cell-min) + 28px);
 }
 .tzolkin-header-cell {
   display: flex;
@@ -1263,6 +1285,86 @@ html, body {
   color: var(--n-cyan);
   border-color: color-mix(in oklab, var(--n-cyan) 50%, transparent);
   box-shadow: 0 0 calc(14px * var(--glow)) color-mix(in oklab, var(--n-cyan) 40%, transparent);
+}
+.music-btn.playing .ic { animation: music-pulse 1.6s ease-in-out infinite; }
+@keyframes music-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* ── Navigation popup ── */
+.nav-error {
+  min-height: 16px;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--n-red);
+  text-align: center;
+}
+.nav-go-btn {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid color-mix(in oklab, var(--n-cyan) 45%, transparent);
+  border-radius: 12px;
+  background: rgba(125,223,239,0.12);
+  color: var(--n-cyan);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .2s, transform .1s;
+}
+.nav-go-btn:active { transform: scale(.97); background: rgba(125,223,239,0.2); }
+
+/* ── Journal / retention ── */
+.journal-card .card-title { align-items: center; }
+.streak-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--n-amber);
+  background: color-mix(in oklab, var(--n-amber) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--n-amber) 35%, transparent);
+}
+.streak-chip svg { display: block; }
+.fav-star {
+  border: none; background: none; cursor: pointer;
+  color: var(--ink-faint);
+  padding: 2px; line-height: 0;
+  transition: transform .15s, color .2s;
+}
+.fav-star:active { transform: scale(.85); }
+.fav-star.on { color: var(--n-amber); filter: drop-shadow(0 0 calc(6px * var(--glow)) var(--n-amber)); }
+.day-note {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--hairline-2);
+  border-radius: 12px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 64px;
+  outline: none;
+  transition: border-color .2s;
+}
+.day-note:focus { border-color: color-mix(in oklab, var(--n-violet) 55%, transparent); }
+.day-note::placeholder { color: var(--ink-faint); }
+.note-status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--n-cyan);
+  min-height: 14px;
+  margin-top: 5px;
+  text-align: right;
 }
 
 /* Settings button (mirrors music-btn on the left) */

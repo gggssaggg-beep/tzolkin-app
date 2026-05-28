@@ -1,39 +1,52 @@
-/* Tzolkin Dreamspell core calculations — port of Python core.py + oracle.py + wavespell.py */
+/* Tzolkin Dreamspell core calculations — port of Python core.py + oracle.py + wavespell.py
+ *
+ * Date math is done entirely in UTC integer-day space (Date.UTC → ms → days).
+ * This eliminates DST shifts, historical local-offset quirks (LMT before ~1920),
+ * and the pre-1970 epoch ambiguities that plague local `new Date(y,m,d)` math.
+ * The Dreamspell counter only cares about the calendar Y-M-D, never the clock,
+ * so we anchor every date to UTC midnight and subtract whole days exactly.
+ */
 
-const REF_DATE = new Date(1987, 6, 26); // July 26, 1987
 const REF_KIN  = 34;
+const REF_UTC  = Date.UTC(1987, 6, 26); // July 26, 1987 @ 00:00 UTC
+
+/** Floored modulo — matches Python's `%`, unlike JS truncated `%` for negatives. */
+function mod(n, m) { return ((n % m) + m) % m; }
 
 function isLeap(y) { return y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0); }
 
-function daysBetween(a, b) {
-  return Math.round((b - a) / 86400000);
-}
+/** UTC midnight epoch (ms) for the calendar date of `d`, ignoring its clock/timezone. */
+function utcDay(d) { return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); }
 
-function countSkipped(start, end) {
+/** Exact whole-day difference between two UTC-midnight epochs. */
+function daysBetween(aMs, bMs) { return Math.round((bMs - aMs) / 86400000); }
+
+/** Count Feb 29 days in the half-open interval (startMs, endMs], by year. */
+function countSkipped(startMs, endMs) {
   let count = 0;
-  for (let y = start.getFullYear(); y <= end.getFullYear(); y++) {
+  const y0 = new Date(startMs).getUTCFullYear();
+  const y1 = new Date(endMs).getUTCFullYear();
+  for (let y = y0; y <= y1; y++) {
     if (isLeap(y)) {
-      const feb29 = new Date(y, 1, 29);
-      if (feb29 > start && feb29 <= end) count++;
+      const feb29 = Date.UTC(y, 1, 29);
+      if (feb29 > startMs && feb29 <= endMs) count++;
     }
   }
   return count;
 }
 
 function dreamspellKin(d) {
-  let dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  if (dt.getMonth() === 1 && dt.getDate() === 29) {
-    dt = new Date(dt.getFullYear(), 1, 28);
-  }
+  let ms = utcDay(d);
+  // Feb 29 shares the Kin of Feb 28 (the leap day doesn't advance the count).
+  if (d.getMonth() === 1 && d.getDate() === 29) ms = Date.UTC(d.getFullYear(), 1, 28);
+
   let dreamDays;
-  if (dt >= REF_DATE) {
-    const delta = daysBetween(REF_DATE, dt);
-    dreamDays = delta - countSkipped(REF_DATE, dt);
+  if (ms >= REF_UTC) {
+    dreamDays = daysBetween(REF_UTC, ms) - countSkipped(REF_UTC, ms);
   } else {
-    const delta = daysBetween(dt, REF_DATE);
-    dreamDays = -(delta - countSkipped(dt, REF_DATE));
+    dreamDays = -(daysBetween(ms, REF_UTC) - countSkipped(ms, REF_UTC));
   }
-  return ((REF_KIN - 1 + dreamDays) % 260 + 260) % 260 + 1;
+  return mod(REF_KIN - 1 + dreamDays, 260) + 1;
 }
 
 function kinToToneSeal(kin) {
@@ -41,15 +54,15 @@ function kinToToneSeal(kin) {
 }
 
 function kinFromToneSeal(tone, seal) {
-  return (40 * (tone - 1) + 221 * (seal - 1)) % 260 + 1;
+  return mod(40 * (tone - 1) + 221 * (seal - 1), 260) + 1;
 }
 
 const GUIDE_OFFSET = {1:0,2:12,3:4,4:16,5:8,6:0,7:12,8:4,9:16,10:8,11:0,12:12,13:4};
 
 function oracle(kin) {
   const {tone, seal} = kinToToneSeal(kin);
-  const guideSeal = ((seal - 1 + GUIDE_OFFSET[tone]) % 20) + 1;
-  const analogSeal = ((18 - seal) % 20) + 1;
+  const guideSeal = mod(seal - 1 + GUIDE_OFFSET[tone], 20) + 1;
+  const analogSeal = mod(18 - seal, 20) + 1; // floored mod: seals 19/20 stay valid
   return {
     guide:    kinFromToneSeal(tone, guideSeal),
     hidden:   261 - kin,
@@ -101,19 +114,17 @@ const PLASMAS = [
 const WEEK_COLORS = ['Красная','Белая','Синяя','Жёлтая'];
 
 function getMoon(d) {
-  let dt = new Date(d);
-  if (isLeap(dt.getFullYear()) && dt.getMonth() === 1 && dt.getDate() === 29)
-    dt = new Date(dt.getFullYear(), 1, 28);
-  if (dt.getMonth() === 6 && dt.getDate() === 25)
-    return {isOot: true};
-  let ys;
-  if (dt.getMonth() > 6 || (dt.getMonth() === 6 && dt.getDate() >= 26))
-    ys = new Date(dt.getFullYear(), 6, 26);
-  else
-    ys = new Date(dt.getFullYear() - 1, 6, 26);
-  let dp = daysBetween(ys, dt);
-  const ny = ys.getFullYear() + 1;
-  if (isLeap(ny) && dt >= new Date(ny, 2, 1)) dp--;
+  const y = d.getFullYear(), mo = d.getMonth(), day = d.getDate();
+  let ms = Date.UTC(y, mo, day);
+  if (isLeap(y) && mo === 1 && day === 29) ms = Date.UTC(y, 1, 28);
+  if (mo === 6 && day === 25) return {isOot: true};
+
+  const ysYear = (mo > 6 || (mo === 6 && day >= 26)) ? y : y - 1;
+  const ysMs = Date.UTC(ysYear, 6, 26);
+  let dp = daysBetween(ysMs, ms);
+  const ny = ysYear + 1;
+  if (isLeap(ny) && ms >= Date.UTC(ny, 2, 1)) dp--;
+
   const mn = Math.floor(dp / 28) + 1;
   const md = dp % 28 + 1;
   const pi = (md - 1) % 7;
@@ -123,14 +134,10 @@ function getMoon(d) {
 }
 
 function yearBearer(d) {
-  let dt = new Date(d);
-  let ys;
-  if (dt.getMonth() > 6 || (dt.getMonth() === 6 && dt.getDate() >= 26))
-    ys = new Date(dt.getFullYear(), 6, 26);
-  else
-    ys = new Date(dt.getFullYear() - 1, 6, 26);
-  const kin = dreamspellKin(ys);
-  return {kin, yearStart: ys};
+  const y = d.getFullYear(), mo = d.getMonth(), day = d.getDate();
+  const ysYear = (mo > 6 || (mo === 6 && day >= 26)) ? y : y - 1;
+  const ys = new Date(ysYear, 6, 26);
+  return {kin: dreamspellKin(ys), yearStart: ys};
 }
 
 const PULSAR_DATA = {
