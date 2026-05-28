@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '50';
+const APP_VER = '51';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -14,6 +14,18 @@ function isPro() { return displayMode === 'pro'; }
 /* ── Cycles tab state ── */
 let cyclesKin = null; // lazy init on first render
 let dragUnit = 0;     // unit of currently dragged strip, 0 = not dragging
+
+/* ── Authentic Maya mode (Tzolk'in · Chol Q'ij) ── */
+let mayaMode = localStorage.getItem('mayaMode') === '1';
+let mayaSelectedSign = null;  // catalog/sign-card: position 1..20, null = grid view
+let mayaTaleOpen = null;      // tales: episode index, null = list view
+let DREAM_TABS_HTML = null;   // captured static Dreamspell tab bar, restored on mode off
+const MAYA_TABS = [
+  ['maya-today', 'СЕГОДНЯ'], ['maya-self', 'МОЙ'], ['maya-grid', 'СЕТКА'],
+  ['maya-catalog', 'ЗНАКИ'], ['maya-tales', 'СКАЗАНИЯ'], ['maya-med', 'МЕДИЦИНА'],
+];
+const MAYA_TAB_SET = new Set(MAYA_TABS.map(t => t[0]));
+const DREAM_TAB_SET = new Set(['main', 'cycles', 'tzolkin', 'personal']);
 
 const MONTHS_RU = [
   'января','февраля','марта','апреля','мая','июня',
@@ -595,6 +607,8 @@ function navigateToDate(d) {
 function switchTab(tab) {
   if (tab === currentTab) return;
   currentTab = tab;
+  mayaSelectedSign = null;  // tab click always returns to list/grid, never a stale card
+  mayaTaleOpen = null;
   const card = document.getElementById('card');
   card.classList.add('tab-fade');
   document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
@@ -605,6 +619,42 @@ function switchTab(tab) {
     window.scrollTo({ top: 0 });
     requestAnimationFrame(() => card.classList.remove('tab-fade'));
   }, 150);
+}
+
+/* Build the bottom tab bar for the active mode. Dreamspell bar is the static
+   markup from index.html (captured once); Maya bar is generated text labels. */
+function renderTabs() {
+  const el = document.getElementById('tabs');
+  if (DREAM_TABS_HTML === null) DREAM_TABS_HTML = el.innerHTML;
+  if (mayaMode) {
+    el.classList.add('tabs-maya');
+    el.innerHTML = MAYA_TABS.map(([t, l]) =>
+      `<button class="tab${t === currentTab ? ' active' : ''}" data-tab="${t}">${l}</button>`).join('');
+  } else {
+    el.classList.remove('tabs-maya');
+    el.innerHTML = DREAM_TABS_HTML;
+    el.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === currentTab));
+  }
+}
+
+/* Open a sign's full card in the catalog tab from anywhere (today/grid/tales). */
+function openMayaSign(pos) {
+  mayaSelectedSign = pos;
+  mayaTaleOpen = null;
+  if (currentTab !== 'maya-catalog') { currentTab = 'maya-catalog'; renderTabs(); }
+  render();
+  window.scrollTo({ top: 0 });
+}
+
+function setMayaMode(on) {
+  mayaMode = on;
+  localStorage.setItem('mayaMode', on ? '1' : '0');
+  currentTab = on ? 'maya-today' : 'main';
+  mayaSelectedSign = null;
+  mayaTaleOpen = null;
+  cyclesKin = null;
+  renderTabs();
+  render();
 }
 
 
@@ -1617,6 +1667,277 @@ function renderMayaClassic() {
   return html;
 }
 
+/* ══ Authentic Maya renderers (Tzolk'in · Chol Q'ij) ══════════════════ */
+const MAYA_DIR_COLOR = { 'Восток': 'red', 'Север': 'cyan', 'Запад': 'blue', 'Юг': 'amber' };
+function mayaSignColor(s) { return MAYA_DIR_COLOR[s.direction] || 'cyan'; }
+
+function mayaBrandHeader(sub) {
+  return `<div class="maya-brand">
+    <div class="maya-brand-title">TZOLK'IN · ЧОЛЬ-К'ИХ</div>
+    <div class="maya-brand-sub">${sub || "подлинный календарь майя · живой счёт К'иче'"}</div>
+  </div>`;
+}
+
+/* Full encyclopedic card for one of the 20 day-signs (independent of number). */
+function mayaSignCardHtml(pos) {
+  const s = mayaData.tzolkin.day_signs[pos - 1];
+  const prof = mayaData.sign_profiles[String(pos)] || {};
+  const med = prof.medicine || {};
+  const color = mayaSignColor(s);
+  let h = `<div class="kin-card">
+    <div style="display:flex;gap:14px;align-items:center">
+      <div class="seal-badge ${color} c-${color}" style="width:72px;height:72px;flex:0 0 auto">${sealImg(pos, 60, true)}</div>
+      <div>
+        <div class="kin-title" style="font-size:20px;text-transform:uppercase;letter-spacing:0.08em">${s.name_yucatec}</div>
+        <div class="kin-subtitle">${s.meaning_ru}</div>
+        <div class="eyebrow muted" style="margin-top:4px">ЗНАК ${pos} ИЗ 20</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+      <p>▸ К'ИЧЕ': ${s.name_kiche}</p>
+      <p>▸ НАХУАТЛЬ: ${s.name_nahuatl}</p>
+      <p>▸ КЛАССИЧЕСКОЕ: ${s.name_classic_proto}</p>
+      <p>▸ НАПРАВЛЕНИЕ: ${s.direction} · СТИХИЯ: ${s.element}</p>
+      <p>▸ ПОКРОВИТЕЛЬ: ${s.patron_deity}</p>
+    </div>
+  </div>`;
+  h += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-${color});box-shadow:0 0 8px var(--n-${color})"></span>ГЛИФ</h3>
+    <p>${s.glyph_description}</p>
+    ${s.notes_scholarly ? `<p style="font-size:11px;color:var(--ink-faint);margin-top:8px;font-style:italic">${s.notes_scholarly}</p>` : ''}
+    <p style="font-size:10px;color:var(--ink-faint);margin-top:8px">Изображение — стилизованная печать; подлинный глиф Классического периода описан выше текстом.</p>
+  </div>`;
+  if (s.legend_ru) h += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-${color});box-shadow:0 0 8px var(--n-${color})"></span>ЛЕГЕНДА</h3>
+    <p style="line-height:1.7">${s.legend_ru}</p>
+    ${s.legend_source ? `<p style="font-size:10px;color:var(--ink-faint);margin-top:10px;font-style:italic;line-height:1.5">📖 ${s.legend_source}</p>` : ''}
+  </div>`;
+  if (prof.character_ru) h += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>ХАРАКТЕР · НАВ'АЛЬ</h3>
+    <p>${prof.character_ru}</p>
+    ${s.qualities_ru ? `<p style="margin-top:8px"><b>Качества:</b> ${s.qualities_ru}</p>` : ''}
+    <p style="font-size:10px;color:var(--ink-faint);margin-top:8px;font-style:italic">Толкование живой традиции дневальных К'иче' (Tedlock 1982; Johnson, Jaguar Wisdom).</p>
+  </div>`;
+  if (s.shadow_ru) h += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span>ТЕНЬ</h3>
+    <p>${s.shadow_ru}</p>
+  </div>`;
+  if (med.body_system_ru) h += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span>МЕДИЦИНА</h3>
+    <div style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.04em;color:var(--ink-dim)">
+      <p>▸ ТЕЛО/СИСТЕМА: ${med.body_system_ru}</p>
+      <p>▸ ПО ЖИЗНИ: ${med.watch_life_ru}</p>
+      <p>▸ В ДЕНЬ ЗНАКА: ${med.today_ru}</p>
+      <p>▸ ЦЕЛИТЕЛЬСКИЙ ДАР: ${med.healer_gift_ru}</p>
+    </div>
+  </div>`;
+  return h;
+}
+
+function renderMayaToday() {
+  if (!mayaData) return '<div class="kin-card"><p>Загрузка данных…</p></div>';
+  const md = classicMayaDate(currentDate);
+  const s = mayaData.tzolkin.day_signs[md.tzolkinSign - 1];
+  return mayaBrandHeader()
+    + `<div class="kin-card" style="padding:10px 12px"><p class="section-intro" style="border:none;padding:0;margin:0">Знак сегодняшнего дня на языке К'иче' — это <b>нав'аль</b> (nawal), дух-покровитель дня. Ниже — число, печать, Хааб и Длинный счёт.</p></div>`
+    + renderMayaClassic()
+    + `<button class="maya-fullcard-btn" data-maya-sign="${md.tzolkinSign}">◉ ПОЛНАЯ КАРТОЧКА ЗНАКА — ${s.name_yucatec}</button>`;
+}
+
+function renderMayaPersonal() {
+  if (!mayaData) return '<div class="kin-card"><p>Загрузка данных…</p></div>';
+  const birthDateStr = localStorage.getItem('birthDate');
+  if (!birthDateStr) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return mayaBrandHeader('мой нав\'аль')
+      + `<div class="kin-card">
+      <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> МОЙ НАВ'АЛЬ</h3>
+      <p style="color:var(--ink-faint);margin-bottom:12px;font-size:13px;line-height:1.5">В традиции К'иче' знак вашего дня рождения называется <b>нав'аль (nawal)</b> — личный дух-покровитель, определяющий характер и судьбу. Укажите дату рождения, чтобы вычислить его по живому счёту майя (корреляция GMT-584283).</p>
+      <div class="birth-input-group">
+        <input type="date" id="birth-date-input" value="1990-01-01" min="1900-01-01" max="${todayStr}">
+        <button id="birth-save-btn">OK</button>
+      </div>
+      <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;text-align:center">Или введите текстом: <input type="text" id="birth-text-input" placeholder="26.07.1990" style="background:rgba(255,255,255,0.06);border:1px solid var(--hairline-2);border-radius:8px;color:var(--ink);padding:4px 8px;font-family:var(--font-mono);font-size:12px;width:100px;text-align:center"></p>
+    </div>`;
+  }
+  const [y, m, d] = birthDateStr.split('-').map(Number);
+  const birthD = new Date(y, m - 1, d);
+  const md = classicMayaDate(birthD);
+  const s = mayaData.tzolkin.day_signs[md.tzolkinSign - 1];
+  const numData = mayaData.tzolkin.numbers.list[md.tzolkinNum - 1];
+  const monthData = mayaData.haab.months[md.monthIdx];
+  const color = mayaSignColor(s);
+  const longCount = `${md.baktun}.${md.katun}.${md.tun}.${md.winal}.${md.kin}`;
+  let h = mayaBrandHeader('мой нав\'аль');
+  h += `<div class="kin-card">
+    <div class="eyebrow" style="text-align:center;letter-spacing:0.18em;margin-bottom:8px">МОЙ НАВ'АЛЬ · ${formatDateRu(birthD).toUpperCase()}</div>
+    <div style="text-align:center;margin-bottom:6px">${mayaDots(md.tzolkinNum)}</div>
+    <div style="text-align:center;margin-bottom:4px">${toneImg(md.tzolkinNum, 34)}</div>
+    <div class="seal-badge ${color} c-${color}" style="width:84px;height:84px;margin:0 auto 8px">${sealImg(md.tzolkinSign, 72, true)}</div>
+    <div class="kin-number c-${color}" style="font-size:44px;text-align:center">${md.tzolkinNum}</div>
+    <div class="kin-title" style="font-size:22px;text-align:center;text-transform:uppercase;letter-spacing:0.1em">${s.name_yucatec}</div>
+    <div class="kin-subtitle" style="text-align:center;margin-bottom:10px">${s.meaning_ru}</div>
+    <div style="font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+      <p>▸ К'ИЧЕ': ${md.tzolkinNum} ${s.name_kiche} (${numData.name_kiche})</p>
+      <p>▸ НАХУАТЛЬ: ${md.tzolkinNum} ${s.name_nahuatl}</p>
+      <p>▸ ХААБ РОЖДЕНИЯ: ${md.dayInMonth} ${monthData.name} (${monthData.name_ru})</p>
+      <p>▸ ДЛИННЫЙ СЧЁТ: ${longCount}</p>
+      <p>▸ КРУГ КАЛЕНДАРЯ: ${md.tzolkinNum} ${s.name_yucatec} ${md.dayInMonth} ${monthData.name}</p>
+    </div>
+    <p class="section-intro" style="margin-top:10px;border:none;padding:0">Нав'аль — знак дня рождения по непрерывному счёту К'иче' (не по Дримспелл). Полная карточка ниже.</p>
+  </div>`;
+  h += mayaSignCardHtml(md.tzolkinSign);
+  h += `<button class="birth-clear-btn" id="birth-clear-btn" style="width:100%;margin-top:4px;padding:12px;border:1px solid var(--hairline);border-radius:12px;background:rgba(255,255,255,0.03);color:var(--ink-faint);font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer">СБРОСИТЬ ДАТУ РОЖДЕНИЯ</button>`;
+  return h;
+}
+
+function renderMayaGrid() {
+  if (!mayaData) return '<div class="kin-card"><p>Загрузка данных…</p></div>';
+  const todayMd = classicMayaDate(currentDate);
+  const pos = ((todayMd.dc % 260) + 260) % 260;
+  const startDate = addDays(currentDate, -pos);
+  let bSign = null;
+  const birthDateStr = localStorage.getItem('birthDate');
+  if (birthDateStr) { const [by, bm, bd] = birthDateStr.split('-').map(Number); bSign = classicMayaDate(new Date(by, bm - 1, bd)); }
+  let h = mayaBrandHeader('круг 260 дней')
+    + `<div class="kin-card" style="padding:10px"><h3 class="card-title" style="font-size:12px"><span class="dot"></span> КРУГ 260 ДНЕЙ · НАВИГАТОР</h3><p class="section-intro" style="border:none;padding:0;margin:0">Текущий 260-дневный круг Чоль-К'их (сегодня — в рамке${bSign ? ", нав'аль рождения — пунктиром" : ''}). Нажмите на день, чтобы перейти к нему.</p></div>`;
+  h += `<div class="maya-grid-wrap"><div class="maya-grid">`;
+  for (let n = 0; n < 260; n++) {
+    const dd = addDays(startDate, n);
+    const md = classicMayaDate(dd);
+    const s = mayaData.tzolkin.day_signs[md.tzolkinSign - 1];
+    const color = mayaSignColor(s);
+    const isToday = n === pos;
+    const isBirth = bSign && md.tzolkinSign === bSign.tzolkinSign && md.tzolkinNum === bSign.tzolkinNum;
+    h += `<button class="maya-grid-cell color-${color}${isToday ? ' current' : ''}${isBirth ? ' birth' : ''}" data-maya-date="${dateKey(dd)}" title="${md.tzolkinNum} ${s.name_yucatec} — ${dd.getDate()} ${MONTHS_RU[dd.getMonth()]} ${dd.getFullYear()}">${sealImg(md.tzolkinSign, 18)}<span class="mg-num">${md.tzolkinNum}</span></button>`;
+  }
+  h += `</div></div>`;
+  return h;
+}
+
+function renderMayaCatalog() {
+  if (!mayaData) return '<div class="kin-card"><p>Загрузка данных…</p></div>';
+  if (mayaSelectedSign) {
+    return mayaBrandHeader('20 знаков · карточка')
+      + `<button class="maya-back-btn" data-maya-back="catalog">← К 20 ЗНАКАМ</button>`
+      + mayaSignCardHtml(mayaSelectedSign);
+  }
+  let h = mayaBrandHeader('20 знаков и 13 чисел')
+    + `<div class="kin-card" style="padding:10px"><p class="section-intro" style="border:none;padding:0;margin:0">Двадцать нав'алей (печатей) — основа Цолькина. Нажмите на знак, чтобы открыть полную карточку: глиф, бог, легенда, характер, тень, медицина.</p></div>`;
+  h += `<div class="maya-catalog-grid">`;
+  for (let pos = 1; pos <= 20; pos++) {
+    const s = mayaData.tzolkin.day_signs[pos - 1];
+    const color = mayaSignColor(s);
+    h += `<button class="maya-cat-cell color-${color}" data-maya-sign="${pos}">${sealImg(pos, 38)}<span class="mc-name">${s.name_yucatec}</span><span class="mc-pos">${pos}</span></button>`;
+  }
+  h += `</div>`;
+  h += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>13 ЧИСЕЛ (ТРЕЦЕНА)</h3>`;
+  const numbers = mayaData.tzolkin.numbers.list;
+  for (let i = 1; i <= 13; i++) {
+    const n = numbers[i - 1];
+    const long = mayaData.numbers_long[String(i)] || '';
+    h += `<div class="maya-num-row"><div class="maya-num-dots">${mayaDots(i)}<span class="mnr-num">${i}</span></div><div class="maya-num-text"><b>${n.name_kiche}</b> — ${long}</div></div>`;
+  }
+  h += `</div>`;
+  return h;
+}
+
+function renderMayaTales() {
+  if (!mayaData || !mayaData.popol_vuh_narrative) return '<div class="kin-card"><p>Загрузка данных…</p></div>';
+  const pv = mayaData.popol_vuh_narrative;
+  if (mayaTaleOpen !== null && pv.episodes[mayaTaleOpen]) {
+    const e = pv.episodes[mayaTaleOpen];
+    let h = mayaBrandHeader('сказания · Пополь-Вух')
+      + `<button class="maya-back-btn" data-maya-back="tales">← КО ВСЕМ СКАЗАНИЯМ</button>`
+      + `<div class="kin-card"><h3 class="card-title"><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ${e.title_ru.toUpperCase()}</h3><p style="line-height:1.75;margin-top:8px">${e.text_ru}</p>`;
+    if (e.day_sign_refs && e.day_sign_refs.length) {
+      h += `<div class="maya-tale-refs"><div class="eyebrow" style="margin-bottom:6px">ЗНАКИ ЭТОГО СКАЗАНИЯ</div><div class="mtr-row">`;
+      for (const r of e.day_sign_refs) {
+        const s = mayaData.tzolkin.day_signs[r - 1];
+        h += `<button class="mtr-chip" data-maya-sign="${r}">${sealImg(r, 24)}<span>${s.name_yucatec}</span></button>`;
+      }
+      h += `</div></div>`;
+    }
+    h += `<p style="font-size:10px;color:var(--ink-faint);margin-top:10px;font-style:italic">📖 ${e.source}</p></div>`;
+    return h;
+  }
+  let h = mayaBrandHeader('сказания · Пополь-Вух')
+    + `<div class="kin-card"><h3 class="card-title"><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span> ${pv.title.toUpperCase()}</h3><p style="line-height:1.6;margin-top:6px">${pv.intro}</p><p style="font-size:10px;color:var(--ink-faint);margin-top:8px;font-style:italic">📖 ${pv.source}</p></div>`;
+  h += `<div class="maya-tales-list">`;
+  pv.episodes.forEach((e, i) => {
+    h += `<button class="maya-tale-item" data-maya-tale="${i}"><span class="mti-n">${i + 1}</span><span class="mti-t">${e.title_ru}</span><span class="mti-arrow">→</span></button>`;
+  });
+  h += `</div>`;
+  return h;
+}
+
+function renderMayaMedicine() {
+  if (!mayaData || !mayaData.medicine_intro) return '<div class="kin-card"><p>Загрузка данных…</p></div>';
+  const mi = mayaData.medicine_intro;
+  const todayMd = classicMayaDate(currentDate);
+  const todayS = mayaData.tzolkin.day_signs[todayMd.tzolkinSign - 1];
+  const todayMed = (mayaData.sign_profiles[String(todayMd.tzolkinSign)] || {}).medicine || {};
+  let h = mayaBrandHeader('медицина майя');
+  h += `<div class="kin-card"><h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> ${mi.title.toUpperCase()}</h3>
+    <p style="line-height:1.65;margin-top:8px"><b>Иш-Чель.</b> ${mi.ix_chel}</p>
+    <p style="line-height:1.65;margin-top:8px"><b>Целители.</b> ${mi.healers}</p>
+    <p style="line-height:1.65;margin-top:8px"><b>Тело-календарь.</b> ${mi.body_map}</p>
+    <p style="line-height:1.6;margin-top:8px;color:var(--ink-dim)">${mi.usage}</p></div>`;
+  const birthDateStr = localStorage.getItem('birthDate');
+  if (birthDateStr) {
+    const [by, bm, bd] = birthDateStr.split('-').map(Number);
+    const bMd = classicMayaDate(new Date(by, bm - 1, bd));
+    const bS = mayaData.tzolkin.day_signs[bMd.tzolkinSign - 1];
+    const bMed = (mayaData.sign_profiles[String(bMd.tzolkinSign)] || {}).medicine || {};
+    const bc = mayaSignColor(bS);
+    h += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-${bc});box-shadow:0 0 8px var(--n-${bc})"></span>ПО ЖИЗНИ · НАВ'АЛЬ ${bS.name_yucatec}</h3>
+      <div style="display:flex;gap:10px;align-items:center;margin:8px 0">${sealImg(bMd.tzolkinSign, 40)}<div class="eyebrow muted">знак рождения · на что обращать внимание по жизни</div></div>
+      <div style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.04em;color:var(--ink-dim)">
+        <p>▸ ТЕЛО/СИСТЕМА: ${bMed.body_system_ru || '—'}</p>
+        <p>▸ ВНИМАНИЕ: ${bMed.watch_life_ru || '—'}</p>
+        <p>▸ ВАШ ДАР: ${bMed.healer_gift_ru || '—'}</p>
+      </div></div>`;
+  } else {
+    h += `<div class="detail-section"><h3><span class="dot"></span>ПО ЖИЗНИ</h3><p style="color:var(--ink-faint)">Укажите дату рождения во вкладке «МОЙ», чтобы увидеть телесные соответствия вашего нав'аля.</p></div>`;
+  }
+  const tc = mayaSignColor(todayS);
+  h += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-${tc});box-shadow:0 0 8px var(--n-${tc})"></span>СЕГОДНЯ · ${todayMd.tzolkinNum} ${todayS.name_yucatec}</h3>
+    <div style="display:flex;gap:10px;align-items:center;margin:8px 0">${sealImg(todayMd.tzolkinSign, 40)}<div class="eyebrow muted">${formatDateRu(currentDate).toUpperCase()}</div></div>
+    <div style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.04em;color:var(--ink-dim)">
+      <p>▸ ТЕЛО/СИСТЕМА: ${todayMed.body_system_ru || '—'}</p>
+      <p>▸ БЛАГОПРИЯТНО: ${todayMed.today_ru || '—'}</p>
+    </div></div>`;
+  h += `<div class="detail-section"><h3><span class="dot"></span>ИСТОЧНИКИ</h3>
+    <div style="font-size:10px;color:var(--ink-faint);line-height:1.5">${mi.sources.join('<br>')}</div>
+    <p style="font-size:11px;color:var(--n-amber);margin-top:10px;line-height:1.5">⚠ ${mi.disclaimer}</p></div>`;
+  return h;
+}
+
+function bindMayaEvents() {
+  const card = document.getElementById('card');
+  card.querySelectorAll('[data-maya-sign]').forEach(el => {
+    el.addEventListener('click', () => { haptic('selection'); openMayaSign(+el.dataset.mayaSign); });
+  });
+  card.querySelectorAll('[data-maya-date]').forEach(el => {
+    el.addEventListener('click', () => {
+      haptic('selection');
+      const d = parseInputDate(el.dataset.mayaDate);
+      if (d) { currentDate = d; currentTab = 'maya-today'; renderTabs(); render(); window.scrollTo({ top: 0 }); }
+    });
+  });
+  card.querySelectorAll('[data-maya-tale]').forEach(el => {
+    el.addEventListener('click', () => { haptic('selection'); mayaTaleOpen = +el.dataset.mayaTale; render(); window.scrollTo({ top: 0 }); });
+  });
+  card.querySelectorAll('[data-maya-back]').forEach(el => {
+    el.addEventListener('click', () => {
+      haptic('selection');
+      if (el.dataset.mayaBack === 'catalog') mayaSelectedSign = null;
+      if (el.dataset.mayaBack === 'tales') mayaTaleOpen = null;
+      render(); window.scrollTo({ top: 0 });
+    });
+  });
+}
+
 /* ── Pulsar geometry canvas ── */
 function drawPulsarCanvas(activeTone) {
   const cvs = document.getElementById('pulsar-canvas');
@@ -1771,11 +2092,17 @@ function render() {
       break;
     case 'tzolkin': card.innerHTML = renderTzolkin(kin); break;
     case 'personal': card.innerHTML = renderPersonal(); break;
-    case 'maya': card.innerHTML = renderMayaClassic(); break;
+    case 'maya-today':   card.innerHTML = renderMayaToday(); break;
+    case 'maya-self':    card.innerHTML = renderMayaPersonal(); break;
+    case 'maya-grid':    card.innerHTML = renderMayaGrid(); break;
+    case 'maya-catalog': card.innerHTML = renderMayaCatalog(); break;
+    case 'maya-tales':   card.innerHTML = renderMayaTales(); break;
+    case 'maya-med':     card.innerHTML = renderMayaMedicine(); break;
   }
 
   // Bind dynamic events after render
   bindCardEvents(kin, tone, seal);
+  if (currentTab.startsWith('maya-')) bindMayaEvents();
 
   // Draw pulsar canvas (cycles tab)
   if (currentTab === 'cycles') {
@@ -2226,6 +2553,15 @@ function renderSettings() {
     </div>
 
     <div class="detail-section">
+      <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span>ПОДЛИННЫЙ КАЛЕНДАРЬ МАЙЯ</h3>
+      <p style="margin-top:8px;font-size:11px;color:var(--ink-faint)">Tzolk'in · Чоль-К'их — живой счёт К'иче'-майя (корреляция GMT-584283): знаки-нав'али, число, Хааб, Длинный счёт, сказания Пополь-Вух и медицина майя. При включении приложение переходит в режим майя, Дримспелл скрывается.</p>
+      <div class="mode-toggle" style="margin-top:10px;display:flex;gap:0;border:1px solid var(--hairline);border-radius:10px;overflow:hidden">
+        <button class="maya-mode-btn" data-maya="off" style="flex:1;padding:10px;border:none;background:${!mayaMode ? 'rgba(125,223,239,0.15)' : 'transparent'};color:${!mayaMode ? 'var(--n-cyan)' : 'var(--ink-faint)'};font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:0.06em;cursor:pointer">ДРИМСПЕЛЛ</button>
+        <button class="maya-mode-btn" data-maya="on" style="flex:1;padding:10px;border:none;border-left:1px solid var(--hairline);background:${mayaMode ? 'rgba(255,190,0,0.15)' : 'transparent'};color:${mayaMode ? 'var(--n-amber)' : 'var(--ink-faint)'};font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:0.06em;cursor:pointer">МАЙЯ · TZOLK'IN</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
       <h3><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>ОБРАТНАЯ СВЯЗЬ</h3>
       <p style="margin-top:10px">
         <a href="https://t.me/U314159" style="color:var(--n-cyan);font-family:var(--font-mono);font-size:13px;text-decoration:none">💬 @U314159</a>
@@ -2266,6 +2602,15 @@ function renderSettings() {
       haptic('medium');
       renderSettings();
       render();
+    });
+  });
+  document.querySelectorAll('.maya-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const on = btn.dataset.maya === 'on';
+      if (on === mayaMode) return;
+      haptic('medium');
+      setMayaMode(on);
+      closeSettingsModal();
     });
   });
 }
@@ -2342,13 +2687,16 @@ function setupEvents() {
     }, 50);
   });
 
-  // Tab buttons
-  document.querySelectorAll('.tab').forEach(btn => {
-    btn.addEventListener('click', () => { haptic('selection'); switchTab(btn.dataset.tab); });
+  // Tab buttons — delegated so the bar can be rebuilt per mode without rebinding
+  document.getElementById('tabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab');
+    if (!btn || !btn.dataset.tab) return;
+    haptic('selection');
+    switchTab(btn.dataset.tab);
   });
 
-  // My Kin button (header) → switch to personal tab
-  document.getElementById('my-kin-btn').addEventListener('click', () => switchTab('personal'));
+  // My Kin button (header) → personal tab (mode-aware)
+  document.getElementById('my-kin-btn').addEventListener('click', () => switchTab(mayaMode ? 'maya-self' : 'personal'));
 
   // Settings button
   document.getElementById('settings-btn').addEventListener('click', showSettingsModal);
@@ -2386,7 +2734,7 @@ function setupEvents() {
     if (e.touches.length !== 1) { swipeable = false; return; }
     sx = e.touches[0].clientX;
     sy = e.touches[0].clientY;
-    swipeable = currentTab !== 'tzolkin' && currentTab !== 'cycles';
+    swipeable = !['tzolkin', 'cycles', 'maya-grid', 'maya-catalog', 'maya-tales', 'maya-self'].includes(currentTab);
   }, { passive: true });
   card.addEventListener('touchend', e => {
     if (!swipeable || e.changedTouches.length !== 1) return;
@@ -2493,6 +2841,8 @@ async function init() {
     await loadData();
     updateStreak();
     setupEvents();
+    if (mayaMode) currentTab = 'maya-today';
+    renderTabs();
     render();
     showWelcome();
   } catch (e) {

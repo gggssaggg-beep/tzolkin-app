@@ -875,7 +875,8 @@ html, body {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 6px;
   padding: 10px 8px env(safe-area-inset-bottom, 8px);
   background: linear-gradient(180deg, transparent, rgba(5, 0, 16, 0.92) 30%);
@@ -1685,3 +1686,57 @@ html, body {
   }
   .tz-kin-num { font-size: 12px; }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Authentic Maya mode (Tzolk'in · Chol Q'ij)
+   ───────────────────────────────────────────────────────────── */
+.maya-brand { text-align: center; margin: 2px 0 12px; padding: 10px; border: 1px solid var(--hairline); border-radius: var(--radius); background: linear-gradient(180deg, rgba(255,190,0,0.06), rgba(192,125,255,0.05)); }
+.maya-brand-title { font-family: var(--font-mono); font-weight: 700; font-size: 15px; letter-spacing: 0.14em; color: var(--n-amber); }
+.maya-brand-sub { font-size: 10px; letter-spacing: 0.08em; color: var(--ink-faint); margin-top: 4px; text-transform: uppercase; }
+
+#tabs.tabs-maya { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+#tabs.tabs-maya::-webkit-scrollbar { display: none; }
+#tabs.tabs-maya .tab { flex: 1 0 auto; min-width: 58px; padding: 9px 7px; font-size: 9px; white-space: nowrap; justify-content: center; }
+#tabs.tabs-maya .tab.active { color: var(--n-amber); background: rgba(255,190,0,0.10); border-color: rgba(255,190,0,0.28); box-shadow: 0 0 calc(14px * var(--glow)) rgba(255,190,0,0.22); }
+
+.maya-fullcard-btn, .maya-back-btn { width: 100%; margin: 4px 0 12px; padding: 12px; border: 1px solid var(--hairline); border-radius: 12px; background: rgba(255,190,0,0.08); color: var(--ink); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; }
+.maya-back-btn { background: rgba(255,255,255,0.04); color: var(--ink-faint); }
+.maya-fullcard-btn:active, .maya-back-btn:active { transform: scale(.98); }
+
+.maya-catalog-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+.maya-cat-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border: 1px solid var(--hairline-2); border-radius: 12px; background: rgba(255,255,255,0.03); cursor: pointer; position: relative; }
+.maya-cat-cell:active { transform: scale(.95); }
+.maya-cat-cell .mc-name { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.04em; color: var(--ink-mid); text-align: center; }
+.maya-cat-cell .mc-pos { position: absolute; top: 3px; right: 5px; font-family: var(--font-mono); font-size: 8px; color: var(--ink-faint); }
+.maya-cat-cell.color-red { border-color: color-mix(in oklab, var(--n-red) 35%, transparent); }
+.maya-cat-cell.color-cyan { border-color: color-mix(in oklab, var(--n-cyan) 35%, transparent); }
+.maya-cat-cell.color-blue { border-color: color-mix(in oklab, var(--n-blue) 35%, transparent); }
+.maya-cat-cell.color-amber { border-color: color-mix(in oklab, var(--n-amber) 35%, transparent); }
+
+.maya-num-row { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid var(--hairline); }
+.maya-num-row:last-child { border-bottom: none; }
+.maya-num-dots { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 34px; }
+.maya-num-dots .mnr-num { font-family: var(--font-mono); font-size: 11px; color: var(--n-cyan); font-weight: 600; }
+.maya-num-text { font-size: 12px; line-height: 1.5; color: var(--ink-mid); }
+
+.maya-grid-wrap { overflow-x: auto; margin-bottom: 12px; }
+.maya-grid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; min-width: 340px; }
+.maya-grid-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 3px 1px; border-radius: 6px; border: 1px solid transparent; background: rgba(255,255,255,0.03); cursor: pointer; }
+.maya-grid-cell .mg-num { font-family: var(--font-mono); font-size: 9px; color: var(--ink-mid); }
+.maya-grid-cell.color-red { background: color-mix(in oklab, var(--n-red) 16%, transparent); }
+.maya-grid-cell.color-cyan { background: color-mix(in oklab, var(--n-cyan) 16%, transparent); }
+.maya-grid-cell.color-blue { background: color-mix(in oklab, var(--n-blue) 16%, transparent); }
+.maya-grid-cell.color-amber { background: color-mix(in oklab, var(--n-amber) 16%, transparent); }
+.maya-grid-cell.current { outline: 2px solid var(--n-cyan); box-shadow: 0 0 calc(10px * var(--glow)) var(--n-cyan); }
+.maya-grid-cell.birth { border: 1px dashed var(--n-violet); }
+
+.maya-tales-list { display: flex; flex-direction: column; gap: 6px; }
+.maya-tale-item { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--hairline-2); border-radius: 12px; background: rgba(255,255,255,0.03); cursor: pointer; text-align: left; color: var(--ink); }
+.maya-tale-item:active { transform: scale(.98); }
+.maya-tale-item .mti-n { flex: 0 0 auto; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(255,190,0,0.15); color: var(--n-amber); font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
+.maya-tale-item .mti-t { flex: 1; font-size: 13px; }
+.maya-tale-item .mti-arrow { color: var(--ink-faint); }
+.maya-tale-refs { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hairline); }
+.maya-tale-refs .mtr-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.mtr-chip { display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 6px; border: 1px solid var(--hairline-2); border-radius: 20px; background: rgba(255,255,255,0.04); color: var(--ink-mid); font-family: var(--font-mono); font-size: 11px; cursor: pointer; }
+.mtr-chip:active { transform: scale(.96); }
