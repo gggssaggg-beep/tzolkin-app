@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '51';
+const APP_VER = '62';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -19,12 +19,23 @@ let dragUnit = 0;     // unit of currently dragged strip, 0 = not dragging
 let mayaMode = localStorage.getItem('mayaMode') === '1';
 let mayaSelectedSign = null;  // catalog/sign-card: position 1..20, null = grid view
 let mayaTaleOpen = null;      // tales: episode index, null = list view
+let mayaGridOffset = 0;       // Чоль-К'их grid: window shift in days (arrows page past/future)
+let mayaCatalogScrollY = 0;  // scroll position in the grid+catalog view before opening a sign card
 let DREAM_TABS_HTML = null;   // captured static Dreamspell tab bar, restored on mode off
 const MAYA_TABS = [
-  ['maya-today', 'СЕГОДНЯ'], ['maya-self', 'МОЙ'], ['maya-grid', 'СЕТКА'],
-  ['maya-catalog', 'ЗНАКИ'], ['maya-tales', 'СКАЗАНИЯ'], ['maya-med', 'МЕДИЦИНА'],
+  ['maya-today', 'СЕГОДНЯ'], ['maya-self', 'МОЙ'], ['maya-grid', 'СЕТКА·ЗНАКИ'],
+  ['maya-tales', 'СКАЗАНИЯ'], ['maya-med', 'МЕДИЦИНА'],
 ];
 const MAYA_TAB_SET = new Set(MAYA_TABS.map(t => t[0]));
+// Inline icons so the authentic-mode tab bar matches the Dreamspell one
+// (icon-over-label structure), unifying the two bottom menus.
+const MAYA_TAB_ICONS = {
+  'maya-today':   '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><g stroke-linecap="round"><path d="M12 2.5v2.5"/><path d="M12 19v2.5"/><path d="M2.5 12h2.5"/><path d="M19 12h2.5"/><path d="M5.2 5.2l1.8 1.8"/><path d="M17 17l1.8 1.8"/><path d="M18.8 5.2l-1.8 1.8"/><path d="M7 17l-1.8 1.8"/></g></svg>',
+  'maya-self':    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0" stroke-linecap="round"/></svg>',
+  'maya-grid':    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="M9 3.5v17M15 3.5v17M3.5 9h17M3.5 15h17"/></svg>',
+  'maya-tales':   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5C10.5 4.3 8.4 4 5.5 4H4v14h1.5c2.9 0 5 .3 6.5 1.5" stroke-linejoin="round"/><path d="M12 5.5C13.5 4.3 15.6 4 18.5 4H20v14h-1.5c-2.9 0-5 .3-6.5 1.5" stroke-linejoin="round"/></svg>',
+  'maya-med':     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c-.5-7 4-13 14-13.5C19.5 12.5 14.5 19.5 5 19z" stroke-linejoin="round"/><path d="M9.5 15.5c1.5-2.8 3.8-4.8 6.5-6" stroke-linecap="round"/></svg>',
+};
 const DREAM_TAB_SET = new Set(['main', 'cycles', 'tzolkin', 'personal']);
 
 const MONTHS_RU = [
@@ -95,13 +106,27 @@ function showKinPopup(kin, roleInfo) {
     </div>`;
   if (info?.summary)
     html += `<div class="hr"></div><p style="font-size:12px;color:var(--ink-faint);line-height:1.5">${info.summary}</p>`;
+  html += `<button class="popup-goto-btn" id="popup-goto">ПЕРЕЙТИ К ЭТОМУ ДНЮ →</button>`;
   html += `<button class="popup-close-btn">✕ ЗАКРЫТЬ</button>`;
 
   const popup = document.getElementById('kin-popup-content');
   popup.innerHTML = html;
+  _popupOpenedAt = Date.now();
   document.getElementById('kin-popup').style.display = 'flex';
   popup.querySelector('.popup-close-btn').addEventListener('click', closeKinPopup);
+  popup.querySelector('#popup-goto').addEventListener('click', () => {
+    haptic('medium');
+    currentDate = dateForKin(kin);
+    cyclesKin = null;
+    closeKinPopup();
+    // Jump to the day on the main "Кин" tab so the navigation is visible.
+    if (DREAM_TAB_SET.has(currentTab) && currentTab !== 'main') switchTab('main');
+    else render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }
+
+let _popupOpenedAt = 0;
 
 function closeKinPopup() {
   document.getElementById('kin-popup').style.display = 'none';
@@ -118,6 +143,7 @@ function showInfoPopup(title, bodyHtml) {
     </h3>
     ${bodyHtml}
     <button class="popup-close-btn">✕ ЗАКРЫТЬ</button>`;
+  _popupOpenedAt = Date.now();
   document.getElementById('kin-popup').style.display = 'flex';
   popup.querySelector('.popup-close-btn').addEventListener('click', closeKinPopup);
 }
@@ -138,14 +164,9 @@ function haptic(strength = 'light') {
       else hf.impactOccurred(strength);
     }
   } catch (_) {}
-  // Visual pulse — confirms haptic is firing regardless of physical vibration support
-  const app = document.getElementById('app');
-  if (app) {
-    app.classList.remove('haptic-flash');
-    void app.offsetWidth; // force reflow to restart animation
-    app.classList.add('haptic-flash');
-    setTimeout(() => app.classList.remove('haptic-flash'), 150);
-  }
+  // NOTE: the old full-screen box-shadow "visual pulse" was removed — animating
+  // box-shadow on #app plus a forced reflow (void offsetWidth) ran on EVERY tap
+  // and was a major source of perceived input lag on budget Android devices.
 }
 
 /* ── Vibration toast ── */
@@ -470,10 +491,30 @@ function birthKinOrNull() {
   return isNaN(dt.getTime()) ? null : dreamspellKin(dt);
 }
 
+/** Resolve an ISO YYYY-MM-DD birth date from a <input type=date> value and/or a
+ * free-text "26.07.1990" field. Returns ISO string or null. Shared by the
+ * personal-tab form and the settings-modal form. */
+function birthDateFromInputs(dateVal, textVal) {
+  let v = dateVal;
+  if ((!v || v === '1990-01-01') && textVal && textVal.trim()) {
+    const raw = textVal.trim().replace(/\//g, '.').replace(/-/g, '.');
+    const parts = raw.split('.');
+    if (parts.length === 3) {
+      const [a, b, c] = parts.map(Number);
+      const iso = c > 100 ? `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`
+                          : `${a}-${String(b).padStart(2, '0')}-${String(c).padStart(2, '0')}`;
+      if (!isNaN(new Date(iso).getTime())) v = iso;
+    }
+  }
+  return v || null;
+}
+
 /** Unified date stepper for arrows + swipe. On the personal tab it hops to the
  * next/prev resonant day; elsewhere it's ±1 day. */
 function stepDate(dir) {
-  haptic('light');
+  // Haptic is fired by the caller at PRESS time (pointerdown / swipe start),
+  // not here — so the buzz lands the instant you touch, not on release.
+  mayaGridOffset = 0;  // moving the day recentres the Чоль-К'их grid on it
   if (currentTab === 'personal') {
     const bKin = birthKinOrNull();
     if (bKin != null) {
@@ -595,13 +636,11 @@ function renderNav() {
 }
 
 function navigateToDate(d) {
+  // Render synchronously — no setTimeout fade. The 150ms delay made every date
+  // change feel like the app "responded late". Cards still fade in via their
+  // own CSS animation, so the transition stays smooth but is now instant.
   currentDate = d;
-  const card = document.getElementById('card');
-  card.classList.add('tab-fade');
-  setTimeout(() => {
-    render();
-    requestAnimationFrame(() => card.classList.remove('tab-fade'));
-  }, 150);
+  render();
 }
 
 function switchTab(tab) {
@@ -609,16 +648,12 @@ function switchTab(tab) {
   currentTab = tab;
   mayaSelectedSign = null;  // tab click always returns to list/grid, never a stale card
   mayaTaleOpen = null;
-  const card = document.getElementById('card');
-  card.classList.add('tab-fade');
+  mayaGridOffset = 0;       // re-enter the Чоль-К'их grid centred on today
   document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
   const btn = document.querySelector(`.tab[data-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
-  setTimeout(() => {
-    render();
-    window.scrollTo({ top: 0 });
-    requestAnimationFrame(() => card.classList.remove('tab-fade'));
-  }, 150);
+  render();                 // instant, no artificial delay
+  window.scrollTo({ top: 0 });
 }
 
 /* Build the bottom tab bar for the active mode. Dreamspell bar is the static
@@ -629,7 +664,7 @@ function renderTabs() {
   if (mayaMode) {
     el.classList.add('tabs-maya');
     el.innerHTML = MAYA_TABS.map(([t, l]) =>
-      `<button class="tab${t === currentTab ? ' active' : ''}" data-tab="${t}">${l}</button>`).join('');
+      `<button class="tab${t === currentTab ? ' active' : ''}" data-tab="${t}"><span class="tab-icon">${MAYA_TAB_ICONS[t] || ''}</span>${l}</button>`).join('');
   } else {
     el.classList.remove('tabs-maya');
     el.innerHTML = DREAM_TABS_HTML;
@@ -637,11 +672,12 @@ function renderTabs() {
   }
 }
 
-/* Open a sign's full card in the catalog tab from anywhere (today/grid/tales). */
+/* Open a sign's full card in the grid tab from anywhere (today/grid/tales). */
 function openMayaSign(pos) {
+  if (currentTab === 'maya-grid' && !mayaSelectedSign) mayaCatalogScrollY = window.scrollY;
   mayaSelectedSign = pos;
   mayaTaleOpen = null;
-  if (currentTab !== 'maya-catalog') { currentTab = 'maya-catalog'; renderTabs(); }
+  if (currentTab !== 'maya-grid') { currentTab = 'maya-grid'; renderTabs(); }
   render();
   window.scrollTo({ top: 0 });
 }
@@ -804,7 +840,7 @@ function renderOracle(kin) {
     const isBig = area === 'main';
     const bsz = isBig ? 56 : 40;
     const isz = isBig ? 46 : 32;
-    return `<div class="oracle-cell c-${c} ${isBig ? 'main' : ''}" style="grid-area:${area}" data-oracle-role="${area}">
+    return `<div class="oracle-cell c-${c} ${isBig ? 'main' : ''}" style="grid-area:${area}" data-popup-kin="${k}" data-popup-area="${area}">
       <div class="role">${role}</div>
       <div style="margin:2px 0">${toneImg(kt, 16)}</div>
       <div class="seal-badge ${c}" style="width:${bsz}px;height:${bsz}px;margin:2px auto">${sealImg(seal, isz, true)}</div>
@@ -823,8 +859,6 @@ function renderOracle(kin) {
       ${cell(o.hidden, 'ОККУЛЬТНЫЙ УЧИТЕЛЬ', 'hidden')}
     </div><div class="oracle-list">`;
 
-  const roleAreaMap = { guide: 'guide', antipode: 'anti', analog: 'analog', hidden: 'hidden' };
-
   for (const r of ORACLE_ROLES) {
     const k = o[r.key];
     const { seal } = kinToToneSeal(k);
@@ -832,7 +866,7 @@ function renderOracle(kin) {
     const c = sealColor(seal);
     const title = kinsData[String(k)]?.title || '';
     const sealDesc = si.description_ru ? si.description_ru.split('.')[0] + '.' : `${si.power_ru} · ${si.action_ru}`;
-    html += `<div class="oracle-row" data-oracle-row="${roleAreaMap[r.key]}" data-oracle-kin="${k}">
+    html += `<div class="oracle-row" data-popup-kin="${k}" data-popup-area="${r.key}">
       <div class="oracle-arrow">${r.arrow}</div>
       <div class="oracle-seal-img c-${c}">${sealImg(seal, 32, true)}</div>
       <div class="oracle-info">
@@ -1510,9 +1544,9 @@ function renderMayaClassic() {
   html += `<div class="kin-card">
     <div class="eyebrow" style="text-align:center;margin-bottom:10px;letter-spacing:0.18em">КЛАССИЧЕСКИЙ МАЙЯ · GMT 584283</div>
     <p class="section-intro" style="text-align:center;border:none;padding:0;margin:0 0 10px">Живой счёт К'иче'-майя Гватемалы. Непрерывная традиция, сохранённая с доколумбовых времён.</p>
-    <div style="text-align:center;margin-bottom:6px">${mayaDots(md.tzolkinNum)}</div>
-    <div style="text-align:center;margin-bottom:4px">${toneImg(md.tzolkinNum, 36)}</div>
-    <div class="kin-number c-${color}" style="font-size:52px;text-align:center;margin-bottom:4px">${md.tzolkinNum}</div>
+    <div style="text-align:center;margin-bottom:4px">${toneImg(md.tzolkinNum, 34)}</div>
+    <div style="text-align:center"><div class="seal-badge ${color} c-${color}" style="width:84px;height:84px;margin-bottom:8px">${sealImg(md.tzolkinSign, 72, true)}</div></div>
+    <div class="kin-number c-${color}" style="font-size:48px;text-align:center;margin-bottom:4px">${md.tzolkinNum}</div>
     <div class="kin-title" style="font-size:22px;text-align:center;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">${signData.name_yucatec}</div>
     <div class="kin-subtitle" style="text-align:center;margin-bottom:12px">${signData.meaning_ru}</div>
     <div style="font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
@@ -1718,6 +1752,30 @@ function mayaSignCardHtml(pos) {
     ${s.qualities_ru ? `<p style="margin-top:8px"><b>Качества:</b> ${s.qualities_ru}</p>` : ''}
     <p style="font-size:10px;color:var(--ink-faint);margin-top:8px;font-style:italic">Толкование живой традиции дневальных К'иче' (Tedlock 1982; Johnson, Jaguar Wisdom).</p>
   </div>`;
+
+  // Психологический профиль: светлые и теневые качества + совет
+  const psy = prof.psychology;
+  if (psy && (psy.light?.length || psy.shadow?.length)) {
+    h += `<div class="detail-section">
+      <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>ПСИХОЛОГИЧЕСКИЙ ПРОФИЛЬ</h3>
+      <p style="font-size:11px;color:var(--ink-faint);margin-bottom:10px">Как энергия нав'аля проявляется в характере человека, рождённого в этот день.</p>`;
+    if (psy.light?.length) {
+      h += `<div class="psy-block psy-light">
+        <div class="psy-head">◇ Светлые качества</div>
+        <ul class="psy-list">${psy.light.map(q => `<li>${q}</li>`).join('')}</ul>
+      </div>`;
+    }
+    if (psy.shadow?.length) {
+      h += `<div class="psy-block psy-shadow">
+        <div class="psy-head">◆ Теневые качества</div>
+        <ul class="psy-list">${psy.shadow.map(q => `<li>${q}</li>`).join('')}</ul>
+      </div>`;
+    }
+    if (psy.advice) {
+      h += `<div class="psy-advice">${psy.advice}</div>`;
+    }
+    h += `</div>`;
+  }
   if (s.shadow_ru) h += `<div class="detail-section">
     <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span>ТЕНЬ</h3>
     <p>${s.shadow_ru}</p>
@@ -1731,6 +1789,117 @@ function mayaSignCardHtml(pos) {
       <p>▸ ЦЕЛИТЕЛЬСКИЙ ДАР: ${med.healer_gift_ru}</p>
     </div>
   </div>`;
+
+  // Майянский Крест (Cruz Cósmica Maya) для этого знака
+  const cruz = cruzMaya(pos);
+  const cruzSigns = mayaData.tzolkin.day_signs;
+  const topSign = cruzSigns[cruz.top_conception - 1];
+  const bottomSign = cruzSigns[cruz.bottom_destiny - 1];
+  const rightSign = cruzSigns[cruz.right_material - 1];
+  const leftSign = cruzSigns[cruz.left_spiritual - 1];
+
+  h += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>МАЙЯНСКИЙ КРЕСТ · CRUZ CÓSMICA MAYA</h3>
+    <div class="cruz-maya">
+      <div class="cruz-cell top" data-maya-sign="${cruz.top_conception}">
+        <div class="cruz-label">Зачатие</div>
+        <div class="cruz-label" style="font-size:9px;color:var(--ink-dim)">Прошлое</div>
+        ${sealImg(cruz.top_conception, 32)}
+        <div class="cruz-nawal-name">${topSign.name_yucatec}</div>
+        <div class="cruz-nawal-name" style="font-size:10px;color:var(--ink-faint)">${cruz.top_conception}</div>
+      </div>
+      <div class="cruz-cell center" data-maya-sign="${pos}">
+        <div class="cruz-label cruz-center-label">Сердце</div>
+        <div class="cruz-label cruz-center-label" style="font-size:9px">Суть</div>
+        ${sealImg(pos, 44)}
+        <div class="cruz-nawal-name">${s.name_yucatec}</div>
+        <div class="cruz-nawal-name" style="font-size:10px;color:var(--ink-faint)">${pos}</div>
+      </div>
+      <div class="cruz-cell bottom" data-maya-sign="${cruz.bottom_destiny}">
+        <div class="cruz-label">Судьба</div>
+        <div class="cruz-label" style="font-size:9px;color:var(--ink-dim)">Зрелость</div>
+        ${sealImg(cruz.bottom_destiny, 32)}
+        <div class="cruz-nawal-name">${bottomSign.name_yucatec}</div>
+        <div class="cruz-nawal-name" style="font-size:10px;color:var(--ink-faint)">${cruz.bottom_destiny}</div>
+      </div>
+      <div class="cruz-cell left" data-maya-sign="${cruz.left_spiritual}">
+        <div class="cruz-label">Левая рука</div>
+        <div class="cruz-label" style="font-size:9px;color:var(--ink-dim)">Дух</div>
+        ${sealImg(cruz.left_spiritual, 32)}
+        <div class="cruz-nawal-name">${leftSign.name_yucatec}</div>
+        <div class="cruz-nawal-name" style="font-size:10px;color:var(--ink-faint)">${cruz.left_spiritual}</div>
+      </div>
+      <div class="cruz-cell right" data-maya-sign="${cruz.right_material}">
+        <div class="cruz-label">Правая рука</div>
+        <div class="cruz-label" style="font-size:9px;color:var(--ink-dim)">Материя</div>
+        ${sealImg(cruz.right_material, 32)}
+        <div class="cruz-nawal-name">${rightSign.name_yucatec}</div>
+        <div class="cruz-nawal-name" style="font-size:10px;color:var(--ink-faint)">${cruz.right_material}</div>
+      </div>
+    </div>
+    <div class="cruz-notice">⚠ Внимание: данный Майянский Крест рассчитан по аутентичной системе гватемальских жрецов (Aj Q'ij). Он отражает путь развития вашей души и не совпадает с популярными в интернете западными нью-эйдж-оракулами (Dreamspell).</div>
+  </div>`;
+
+  // Знак в мифах Попол-Вух: сначала пробуем сюжетные роли (myth_roles, текст
+  // под конкретный знак), иначе откатываемся к общему превью эпизода.
+  if (mayaData.popol_vuh_narrative) {
+    const episodes = mayaData.popol_vuh_narrative.episodes;
+    const roles = prof.myth_roles || [];
+    let items;
+    if (roles.length) {
+      items = roles
+        .filter(r => episodes[r.ep])
+        .map(r => ({ i: r.ep, ep: episodes[r.ep], text: r.role }));
+    } else {
+      items = episodes
+        .map((ep, i) => ({ i, ep }))
+        .filter(({ ep }) => (ep.day_sign_refs || []).includes(pos))
+        .map(o => ({ ...o, text: o.ep.text_ru.replace(/<[^>]+>/g, '').slice(0, 120).trimEnd() + '…' }));
+    }
+    if (items.length) {
+      h += `<div class="detail-section">
+    <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span>ЗНАК В МИФАХ ПОПОЛЬ-ВУХ</h3>
+    <p style="font-size:11px;color:var(--ink-faint);margin-bottom:10px">Сказания, в которых живёт энергия нав'аля ${s.name_yucatec}. Нажмите, чтобы прочитать полный текст.</p>`;
+      for (const { i, ep, text } of items) {
+        h += `<button class="maya-myth-ref" data-maya-open-tale="${i}">
+      <div class="mmr-title">${ep.title_ru}</div>
+      <div class="mmr-preview">${text}</div>
+      <div class="mmr-source">${ep.source}</div>
+    </button>`;
+      }
+      h += `</div>`;
+    }
+  }
+
+  return h;
+}
+
+/* Свойства дня (благоприятно / с осторожностью) + медицина дня (можно / не стоит).
+   Данные — distilled из живой традиции дневальных К'иче' (см. day_augury/medicine). */
+function mayaDayProperties(pos) {
+  const s = mayaData.tzolkin.day_signs[pos - 1];
+  const prof = mayaData.sign_profiles[String(pos)] || {};
+  const aug = prof.day_augury || {};
+  const med = prof.medicine || {};
+  const color = mayaSignColor(s);
+  let h = '';
+  if (aug.favorable || aug.caution) {
+    h += `<div class="detail-section">
+      <h3><span class="dot" style="background:var(--n-${color});box-shadow:0 0 8px var(--n-${color})"></span>СВОЙСТВА ДНЯ</h3>
+      <p style="font-size:11px;color:var(--ink-faint);margin-bottom:8px">Энергия дня под знаком ${s.name_yucatec} — на что она настраивает.</p>`;
+    if (aug.favorable) h += `<div class="day-prop good"><span class="dp-h">✓ Благоприятно</span><span class="dp-t">${aug.favorable}</span></div>`;
+    if (aug.caution)   h += `<div class="day-prop care"><span class="dp-h">△ С осторожностью</span><span class="dp-t">${aug.caution}</span></div>`;
+    h += `<p class="dp-note">Толкование по живой традиции дневальных К'иче' (Aj Q'ij; Tedlock; Johnson) — ориентир, а не предписание.</p>
+    </div>`;
+  }
+  if (med.today_ru || med.avoid_ru) {
+    h += `<div class="detail-section">
+      <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span>МЕДИЦИНА ДНЯ</h3>`;
+    if (med.today_ru) h += `<div class="day-prop good"><span class="dp-h">✓ Можно</span><span class="dp-t">${med.today_ru}</span></div>`;
+    if (med.avoid_ru) h += `<div class="day-prop care"><span class="dp-h">△ Не стоит</span><span class="dp-t">${med.avoid_ru}</span></div>`;
+    h += `<p class="dp-note">⚠ Народная традиция майя; не заменяет консультацию врача.</p>
+    </div>`;
+  }
   return h;
 }
 
@@ -1741,6 +1910,7 @@ function renderMayaToday() {
   return mayaBrandHeader()
     + `<div class="kin-card" style="padding:10px 12px"><p class="section-intro" style="border:none;padding:0;margin:0">Знак сегодняшнего дня на языке К'иче' — это <b>нав'аль</b> (nawal), дух-покровитель дня. Ниже — число, печать, Хааб и Длинный счёт.</p></div>`
     + renderMayaClassic()
+    + mayaDayProperties(md.tzolkinSign)
     + `<button class="maya-fullcard-btn" data-maya-sign="${md.tzolkinSign}">◉ ПОЛНАЯ КАРТОЧКА ЗНАКА — ${s.name_yucatec}</button>`;
 }
 
@@ -1771,9 +1941,8 @@ function renderMayaPersonal() {
   let h = mayaBrandHeader('мой нав\'аль');
   h += `<div class="kin-card">
     <div class="eyebrow" style="text-align:center;letter-spacing:0.18em;margin-bottom:8px">МОЙ НАВ'АЛЬ · ${formatDateRu(birthD).toUpperCase()}</div>
-    <div style="text-align:center;margin-bottom:6px">${mayaDots(md.tzolkinNum)}</div>
     <div style="text-align:center;margin-bottom:4px">${toneImg(md.tzolkinNum, 34)}</div>
-    <div class="seal-badge ${color} c-${color}" style="width:84px;height:84px;margin:0 auto 8px">${sealImg(md.tzolkinSign, 72, true)}</div>
+    <div style="text-align:center"><div class="seal-badge ${color} c-${color}" style="width:84px;height:84px;margin-bottom:8px">${sealImg(md.tzolkinSign, 72, true)}</div></div>
     <div class="kin-number c-${color}" style="font-size:44px;text-align:center">${md.tzolkinNum}</div>
     <div class="kin-title" style="font-size:22px;text-align:center;text-transform:uppercase;letter-spacing:0.1em">${s.name_yucatec}</div>
     <div class="kin-subtitle" style="text-align:center;margin-bottom:10px">${s.meaning_ru}</div>
@@ -1793,37 +1962,55 @@ function renderMayaPersonal() {
 
 function renderMayaGrid() {
   if (!mayaData) return '<div class="kin-card"><p>Загрузка данных…</p></div>';
-  const todayMd = classicMayaDate(currentDate);
-  const pos = ((todayMd.dc % 260) + 260) % 260;
-  const startDate = addDays(currentDate, -pos);
-  let bSign = null;
-  const birthDateStr = localStorage.getItem('birthDate');
-  if (birthDateStr) { const [by, bm, bd] = birthDateStr.split('-').map(Number); bSign = classicMayaDate(new Date(by, bm - 1, bd)); }
-  let h = mayaBrandHeader('круг 260 дней')
-    + `<div class="kin-card" style="padding:10px"><h3 class="card-title" style="font-size:12px"><span class="dot"></span> КРУГ 260 ДНЕЙ · НАВИГАТОР</h3><p class="section-intro" style="border:none;padding:0;margin:0">Текущий 260-дневный круг Чоль-К'их (сегодня — в рамке${bSign ? ", нав'аль рождения — пунктиром" : ''}). Нажмите на день, чтобы перейти к нему.</p></div>`;
-  h += `<div class="maya-grid-wrap"><div class="maya-grid">`;
-  for (let n = 0; n < 260; n++) {
-    const dd = addDays(startDate, n);
-    const md = classicMayaDate(dd);
-    const s = mayaData.tzolkin.day_signs[md.tzolkinSign - 1];
-    const color = mayaSignColor(s);
-    const isToday = n === pos;
-    const isBirth = bSign && md.tzolkinSign === bSign.tzolkinSign && md.tzolkinNum === bSign.tzolkinNum;
-    h += `<button class="maya-grid-cell color-${color}${isToday ? ' current' : ''}${isBirth ? ' birth' : ''}" data-maya-date="${dateKey(dd)}" title="${md.tzolkinNum} ${s.name_yucatec} — ${dd.getDate()} ${MONTHS_RU[dd.getMonth()]} ${dd.getFullYear()}">${sealImg(md.tzolkinSign, 18)}<span class="mg-num">${md.tzolkinNum}</span></button>`;
-  }
-  h += `</div></div>`;
-  return h;
-}
 
-function renderMayaCatalog() {
-  if (!mayaData) return '<div class="kin-card"><p>Загрузка данных…</p></div>';
+  // Sign card view (when a sign is selected from catalog or grid)
   if (mayaSelectedSign) {
     return mayaBrandHeader('20 знаков · карточка')
       + `<button class="maya-back-btn" data-maya-back="catalog">← К 20 ЗНАКАМ</button>`
       + mayaSignCardHtml(mayaSelectedSign);
   }
-  let h = mayaBrandHeader('20 знаков и 13 чисел')
-    + `<div class="kin-card" style="padding:10px"><p class="section-intro" style="border:none;padding:0;margin:0">Двадцать нав'алей (печатей) — основа Цолькина. Нажмите на знак, чтобы открыть полную карточку: глиф, бог, легенда, характер, тень, медицина.</p></div>`;
+
+  // Calendar centred on the SELECTED day instead of an old round-start: rows are
+  // trecenas (numbers 1–13 across the columns), today's row sits in the middle,
+  // and the arrows page into the past/future. Starting the window on a number-1
+  // day keeps the column = trecena-number alignment intact.
+  const ROWS = 21;                                    // 273 days shown, today centred
+  const center = addDays(currentDate, mayaGridOffset);
+  const centerNum = classicMayaDate(center).tzolkinNum;          // 1..13
+  const centerTrecenaStart = addDays(center, -(centerNum - 1));  // back to the day with number 1
+  const startDate = addDays(centerTrecenaStart, -13 * Math.floor(ROWS / 2));
+  const total = 13 * ROWS;
+
+  let bSign = null;
+  const birthDateStr = localStorage.getItem('birthDate');
+  if (birthDateStr) { const [by, bm, bd] = birthDateStr.split('-').map(Number); bSign = classicMayaDate(new Date(by, bm - 1, bd)); }
+  const curKey = dateKey(currentDate);
+
+  let h = mayaBrandHeader('круг Чоль-К\'их · навигатор')
+    + `<div class="kin-card" style="padding:10px">
+      <h3 class="card-title" style="font-size:12px"><span class="dot"></span> ЧОЛЬ-К'ИХ · КАЛЕНДАРЬ ДНЕЙ</h3>
+      <p class="section-intro" style="border:none;padding:0;margin:0 0 8px">Дни идут сверху вниз, числа 1–13 — по столбцам. Сегодня — в рамке${bSign ? ", нав'аль рождения — пунктиром" : ''}. Нажмите день, чтобы перейти к нему; стрелками листайте в прошлое и будущее.</p>
+      <div class="maya-grid-nav">
+        <button class="mgn-btn" data-maya-grid="-91">◀ РАНЬШЕ</button>
+        <button class="mgn-btn mgn-now" data-maya-grid="now">⊙ К СЕГОДНЯ</button>
+        <button class="mgn-btn" data-maya-grid="91">ПОЗЖЕ ▶</button>
+      </div>
+      <div class="maya-grid-range">${formatDateRu(startDate)} — ${formatDateRu(addDays(startDate, total - 1))}</div>
+    </div>`;
+  h += `<div class="maya-grid-wrap"><div class="maya-grid">`;
+  for (let n = 0; n < total; n++) {
+    const dd = addDays(startDate, n);
+    const md = classicMayaDate(dd);
+    const s = mayaData.tzolkin.day_signs[md.tzolkinSign - 1];
+    const color = mayaSignColor(s);
+    const isToday = dateKey(dd) === curKey;
+    const isBirth = bSign && md.tzolkinSign === bSign.tzolkinSign && md.tzolkinNum === bSign.tzolkinNum;
+    h += `<button class="maya-grid-cell color-${color}${isToday ? ' current' : ''}${isBirth ? ' birth' : ''}" data-maya-date="${dateKey(dd)}" title="${md.tzolkinNum} ${s.name_yucatec} — ${dd.getDate()} ${MONTHS_RU[dd.getMonth()]} ${dd.getFullYear()}">${sealImg(md.tzolkinSign, 18)}<span class="mg-num">${md.tzolkinNum}</span></button>`;
+  }
+  h += `</div></div>`;
+
+  // ── Catalog section below the grid ──
+  h += `<div class="kin-card" style="padding:10px;margin-top:8px"><p class="section-intro" style="border:none;padding:0;margin:0">Двадцать нав'алей (печатей) — основа Цолькина. Нажмите на знак, чтобы открыть полную карточку: глиф, бог, легенда, характер, тень, медицина.</p></div>`;
   h += `<div class="maya-catalog-grid">`;
   for (let pos = 1; pos <= 20; pos++) {
     const s = mayaData.tzolkin.day_signs[pos - 1];
@@ -1839,6 +2026,7 @@ function renderMayaCatalog() {
     h += `<div class="maya-num-row"><div class="maya-num-dots">${mayaDots(i)}<span class="mnr-num">${i}</span></div><div class="maya-num-text"><b>${n.name_kiche}</b> — ${long}</div></div>`;
   }
   h += `</div>`;
+
   return h;
 }
 
@@ -1869,6 +2057,18 @@ function renderMayaTales() {
   });
   h += `</div>`;
   return h;
+}
+
+/* ── Майянский Крест (Cruz Cósmica Maya) — аутентичная система киче ── */
+function cruzMaya(nawalIndex) {
+  const calc = (offset) => ((nawalIndex - 1 + offset + 40) % 20) + 1;
+  return {
+    center: nawalIndex,
+    top_conception: calc(-8),    // 9 знаков назад (инклюзивно)
+    bottom_destiny: calc(8),      // 9 знаков вперёд (инклюзивно)
+    right_material: calc(-6),     // 7 знаков назад (инклюзивно)
+    left_spiritual: calc(6)       // 7 знаков вперёд (инклюзивно)
+  };
 }
 
 function renderMayaMedicine() {
@@ -1915,6 +2115,7 @@ function renderMayaMedicine() {
 
 function bindMayaEvents() {
   const card = document.getElementById('card');
+  // Open sign card from catalog grid, cross, or tale refs
   card.querySelectorAll('[data-maya-sign]').forEach(el => {
     el.addEventListener('click', () => { haptic('selection'); openMayaSign(+el.dataset.mayaSign); });
   });
@@ -1922,7 +2123,13 @@ function bindMayaEvents() {
     el.addEventListener('click', () => {
       haptic('selection');
       const d = parseInputDate(el.dataset.mayaDate);
-      if (d) { currentDate = d; currentTab = 'maya-today'; renderTabs(); render(); window.scrollTo({ top: 0 }); }
+      if (d) {
+        // Tapping a day in the Чоль-К'их grid jumps straight to that sign's full
+        // card (the short "today" view was redundant). currentDate is set so
+        // date-dependent sections (медицина «сегодня») reflect the chosen day.
+        currentDate = d;
+        openMayaSign(classicMayaDate(d).tzolkinSign);
+      }
     });
   });
   card.querySelectorAll('[data-maya-tale]').forEach(el => {
@@ -1931,11 +2138,40 @@ function bindMayaEvents() {
   card.querySelectorAll('[data-maya-back]').forEach(el => {
     el.addEventListener('click', () => {
       haptic('selection');
-      if (el.dataset.mayaBack === 'catalog') mayaSelectedSign = null;
+      const isCatalog = el.dataset.mayaBack === 'catalog';
+      if (isCatalog) mayaSelectedSign = null;
       if (el.dataset.mayaBack === 'tales') mayaTaleOpen = null;
-      render(); window.scrollTo({ top: 0 });
+      render();
+      window.scrollTo({ top: isCatalog ? mayaCatalogScrollY : 0 });
     });
   });
+  // Open a tale from a sign card and navigate to the tales tab
+  card.querySelectorAll('[data-maya-open-tale]').forEach(el => {
+    el.addEventListener('click', () => {
+      haptic('selection');
+      mayaTaleOpen = +el.dataset.mayaOpenTale;
+      mayaSelectedSign = null;
+      currentTab = 'maya-tales';
+      renderTabs();
+      render();
+      window.scrollTo({ top: 0 });
+    });
+  });
+  // Чоль-К'их grid paging arrows
+  card.querySelectorAll('[data-maya-grid]').forEach(el => {
+    el.addEventListener('click', () => {
+      haptic('selection');
+      const v = el.dataset.mayaGrid;
+      if (v === 'now') mayaGridOffset = 0;
+      else mayaGridOffset += parseInt(v, 10);
+      render();
+    });
+  });
+  // On a centred view, scroll so today's cell sits in the middle of the screen.
+  if (currentTab === 'maya-grid' && mayaGridOffset === 0) {
+    const cur = card.querySelector('.maya-grid-cell.current');
+    if (cur) requestAnimationFrame(() => cur.scrollIntoView({ block: 'center' }));
+  }
 }
 
 /* ── Pulsar geometry canvas ── */
@@ -2095,7 +2331,6 @@ function render() {
     case 'maya-today':   card.innerHTML = renderMayaToday(); break;
     case 'maya-self':    card.innerHTML = renderMayaPersonal(); break;
     case 'maya-grid':    card.innerHTML = renderMayaGrid(); break;
-    case 'maya-catalog': card.innerHTML = renderMayaCatalog(); break;
     case 'maya-tales':   card.innerHTML = renderMayaTales(); break;
     case 'maya-med':     card.innerHTML = renderMayaMedicine(); break;
   }
@@ -2177,21 +2412,6 @@ function bindCardEvents(kin, tone, seal) {
       showInfoPopup('ГАРМОНИКИ', `<p class="pp-intro">${h?.intro || ''}</p><div class="pp-props">${(h?.phases || []).map((p, i) => `▸ ДЕНЬ ${i+1}: ${p}`).join('<br>')}</div>`);
     });
   });
-
-  // Kin search
-  const searchInput = document.getElementById('kin-search-input');
-  const searchGo = document.getElementById('kin-search-go');
-  if (searchInput && searchGo) {
-    const goToKin = () => {
-      const n = parseInt(searchInput.value, 10);
-      if (n >= 1 && n <= 260) {
-        haptic('light');
-        navigateToDate(dateForKin(n));
-      }
-    };
-    searchGo.addEventListener('click', goToKin);
-    searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') goToKin(); });
-  }
 
   // Shared: build wave popup content for a given kin
   function _wavePopupHtml(k) {
@@ -2312,47 +2532,6 @@ function bindCardEvents(kin, tone, seal) {
     });
   });
 
-  // Personal tab: cross cell & row clicks show popup
-  const personalRoles = { guide: 0, analog: 2, antipode: 1, hidden: 3 };
-  card.querySelectorAll('[data-popup-kin]').forEach(el => {
-    el.addEventListener('click', () => {
-      const k = +el.dataset.popupKin;
-      const area = el.dataset.popupArea;
-      if (area === 'main') return;
-      const ri = personalRoles[area] ?? personalRoles[area === 'anti' ? 'antipode' : area];
-      showKinPopup(k, ri !== undefined ? ORACLE_ROLES[ri] : null);
-    });
-  });
-
-  // Oracle: cross cell clicks → navigate to that kin's date (preserve scroll)
-  const roleAreaMap = { guide: 0, anti: 1, analog: 2, hidden: 3 };
-  card.querySelectorAll('.oracle-cell[data-oracle-role]').forEach(el => {
-    el.addEventListener('click', () => {
-      const area = el.dataset.oracleRole;
-      if (area === 'main') return;
-      const curKin = dreamspellKin(currentDate);
-      const o = oracle(curKin);
-      const kinMap = { guide: o.guide, anti: o.antipode, analog: o.analog, hidden: o.hidden };
-      haptic('medium');
-      const scrollY = window.scrollY;
-      currentDate = dateForKin(kinMap[area]);
-      render();
-      window.scrollTo(0, scrollY);
-    });
-  });
-
-  // Oracle: row clicks → navigate to that kin's date
-  card.querySelectorAll('.oracle-row[data-oracle-kin]').forEach(el => {
-    el.addEventListener('click', () => {
-      const targetKin = +el.dataset.oracleKin;
-      haptic('medium');
-      const scrollY = window.scrollY;
-      currentDate = dateForKin(targetKin);
-      render();
-      window.scrollTo(0, scrollY);
-    });
-  });
-
   // Wave kin row clicks — update cyclesKin + scroll to tone strip
   card.querySelectorAll('.wave-kin-row[data-wave-kin]').forEach(el => {
     el.addEventListener('click', () => {
@@ -2449,20 +2628,10 @@ function bindCardEvents(kin, tone, seal) {
   const saveBtn = document.getElementById('birth-save-btn');
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
-      const dateInput = document.getElementById('birth-date-input');
-      const textInput = document.getElementById('birth-text-input');
-      let dateVal = dateInput?.value;
-      if ((!dateVal || dateVal === '1990-01-01') && textInput?.value.trim()) {
-        const raw = textInput.value.trim().replace(/\//g, '.').replace(/-/g, '.');
-        const parts = raw.split('.');
-        if (parts.length === 3) {
-          let [a, b, c] = parts.map(Number);
-          const iso = c > 100 ? `${c}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`
-                              : `${a}-${String(b).padStart(2,'0')}-${String(c).padStart(2,'0')}`;
-          const parsed = new Date(iso);
-          if (!isNaN(parsed.getTime())) dateVal = iso;
-        }
-      }
+      const dateVal = birthDateFromInputs(
+        document.getElementById('birth-date-input')?.value,
+        document.getElementById('birth-text-input')?.value
+      );
       if (dateVal) {
         localStorage.setItem('birthDate', dateVal);
         haptic('medium');
@@ -2496,14 +2665,16 @@ function bindCardEvents(kin, tone, seal) {
     });
   }
 
-  // Personal tab: oracle cross popup handlers
-  const roleMap = { guide: 0, anti: 1, analog: 2, hidden: 3 };
+  // Unified крест-судьбы handler (main + personal cross cells AND list rows):
+  // tap → kin details popup, which itself offers "Перейти к этому дню". One
+  // consistent behavior everywhere — no more "jump here / popup there" split.
+  const roleMap = { guide: 0, anti: 1, antipode: 1, analog: 2, hidden: 3 };
   card.querySelectorAll('[data-popup-kin]').forEach(el => {
     el.addEventListener('click', () => {
       const area = el.dataset.popupArea;
-      if (area === 'main') return;
       const targetKin = +el.dataset.popupKin;
-      showKinPopup(targetKin, ORACLE_ROLES[roleMap[area]]);
+      const ri = roleMap[area];                 // undefined for the central "main" kin
+      showKinPopup(targetKin, ri != null ? ORACLE_ROLES[ri] : null);
     });
   });
 }
@@ -2536,11 +2707,19 @@ function renderSettings() {
     </div>
 
     <div class="detail-section">
-      <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span>ДАННЫЕ</h3>
+      <h3><span class="dot" style="background:var(--n-amber);box-shadow:0 0 8px var(--n-amber)"></span>ДАТА РОЖДЕНИЯ</h3>
       <div style="margin-top:10px;font-family:var(--font-mono);font-size:12px;letter-spacing:0.06em;color:var(--ink-dim)">
-        ${birthDate ? `<p>▸ ДАТА РОЖДЕНИЯ: ${birthDate}</p>` : '<p>▸ ДАТА РОЖДЕНИЯ: не задана</p>'}
+        ${birthDate ? `<p>▸ ${birthDate}</p>` : '<p>▸ не задана</p>'}
       </div>
-      ${birthDate ? `<button id="stg-clear-birth" style="margin-top:10px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;padding:6px 14px;border:1px solid var(--hairline-2);border-radius:20px;background:none;color:var(--ink-faint);cursor:pointer">🗑 СБРОСИТЬ ДАТУ РОЖДЕНИЯ</button>` : ''}
+      ${birthDate
+        ? `<button id="stg-clear-birth" style="margin-top:10px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;padding:6px 14px;border:1px solid var(--hairline-2);border-radius:20px;background:none;color:var(--ink-faint);cursor:pointer">🗑 СБРОСИТЬ ДАТУ РОЖДЕНИЯ</button>`
+        : `<p style="font-size:11px;color:var(--ink-faint);margin:10px 0 8px">Укажите дату рождения, чтобы вычислить ваш Кин Судьбы и нав'аль.</p>
+        <div class="birth-input-group">
+          <input type="date" id="stg-birth-date" value="1990-01-01" min="1900-01-01" max="${new Date().toISOString().slice(0, 10)}">
+          <button id="stg-birth-save">OK</button>
+        </div>
+        <p style="font-size:11px;color:var(--ink-faint);margin-top:8px">Или введите текстом: <input type="text" id="stg-birth-text" placeholder="26.07.1990" style="background:rgba(255,255,255,0.06);border:1px solid var(--hairline-2);border-radius:8px;color:var(--ink);padding:4px 8px;font-family:var(--font-mono);font-size:12px;width:100px;text-align:center"></p>`
+      }
     </div>
 
     <div class="detail-section">
@@ -2592,7 +2771,23 @@ function renderSettings() {
     clearBirthBtn.addEventListener('click', () => {
       localStorage.removeItem('birthDate');
       haptic('medium');
-      renderSettings();
+      renderSettings();   // re-render → the input form appears in place of the date
+    });
+  }
+  // Settings: save birth date entered right here (after a reset, or first time)
+  const stgBirthSave = document.getElementById('stg-birth-save');
+  if (stgBirthSave) {
+    stgBirthSave.addEventListener('click', () => {
+      const dateVal = birthDateFromInputs(
+        document.getElementById('stg-birth-date')?.value,
+        document.getElementById('stg-birth-text')?.value
+      );
+      if (dateVal) {
+        localStorage.setItem('birthDate', dateVal);
+        haptic('medium');
+        renderSettings();
+        render();          // refresh personal/maya tabs behind the modal
+      }
     });
   }
   document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -2630,17 +2825,27 @@ function setupEvents() {
   // Run vibration self-test once on first user gesture
   document.addEventListener('pointerdown', runVibSelfTest, { once: true });
 
-  document.getElementById('today-btn').addEventListener('click', () => {
+  // Buttons fire their haptic on pointerdown (the instant of PRESS) so the buzz
+  // is felt immediately, not on release. The actual action runs on click.
+  const todayBtn = document.getElementById('today-btn');
+  todayBtn.addEventListener('pointerdown', () => haptic('selection'));
+  todayBtn.addEventListener('click', () => {
     currentDate = new Date();
     cyclesKin = null;
     if (currentTab !== 'main') switchTab('main');
     else render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
-  document.getElementById('prev').addEventListener('click', () => stepDate(-1));
-  document.getElementById('next').addEventListener('click', () => stepDate(1));
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  prevBtn.addEventListener('pointerdown', () => haptic('light'));
+  nextBtn.addEventListener('pointerdown', () => haptic('light'));
+  prevBtn.addEventListener('click', () => stepDate(-1));
+  nextBtn.addEventListener('click', () => stepDate(1));
 
-  document.getElementById('date-display').addEventListener('click', () => {
+  const dateDisplay = document.getElementById('date-display');
+  dateDisplay.addEventListener('pointerdown', () => haptic('light'));
+  dateDisplay.addEventListener('click', () => {
     const curKin = dreamspellKin(currentDate);
     showInfoPopup('НАВИГАЦИЯ', `
       <div style="margin-bottom:14px">
@@ -2687,19 +2892,28 @@ function setupEvents() {
     }, 50);
   });
 
-  // Tab buttons — delegated so the bar can be rebuilt per mode without rebinding
-  document.getElementById('tabs').addEventListener('click', (e) => {
+  // Tab buttons — delegated so the bar can be rebuilt per mode without rebinding.
+  // Haptic on pointerdown (press), switch on click.
+  const tabsEl = document.getElementById('tabs');
+  tabsEl.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('.tab');
+    if (btn && btn.dataset.tab) haptic('selection');
+  });
+  tabsEl.addEventListener('click', (e) => {
     const btn = e.target.closest('.tab');
     if (!btn || !btn.dataset.tab) return;
-    haptic('selection');
     switchTab(btn.dataset.tab);
   });
 
   // My Kin button (header) → personal tab (mode-aware)
-  document.getElementById('my-kin-btn').addEventListener('click', () => switchTab(mayaMode ? 'maya-self' : 'personal'));
+  const myKinBtn = document.getElementById('my-kin-btn');
+  myKinBtn.addEventListener('pointerdown', () => haptic('selection'));
+  myKinBtn.addEventListener('click', () => switchTab(mayaMode ? 'maya-self' : 'personal'));
 
   // Settings button
-  document.getElementById('settings-btn').addEventListener('click', showSettingsModal);
+  const settingsBtn = document.getElementById('settings-btn');
+  settingsBtn.addEventListener('pointerdown', () => haptic('light'));
+  settingsBtn.addEventListener('click', showSettingsModal);
   document.getElementById('settings-modal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('settings-modal')) closeSettingsModal();
   });
@@ -2708,6 +2922,7 @@ function setupEvents() {
   const musicBtn = document.getElementById('music-btn');
   let musicLongTimer = null;
   musicBtn.addEventListener('pointerdown', () => {
+    haptic('light'); // press feedback the instant you touch
     musicLongTimer = setTimeout(() => { musicLongTimer = null; testVibration(); }, 600);
   });
   musicBtn.addEventListener('pointerup', () => {
@@ -2715,9 +2930,9 @@ function setupEvents() {
   });
   musicBtn.addEventListener('pointercancel', () => { clearTimeout(musicLongTimer); musicLongTimer = null; });
 
-  // Close popup on overlay click or ESC
+  // Close popup on overlay click or ESC (but not within 1s of opening — prevents accidental dismiss)
   document.getElementById('kin-popup').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('kin-popup')) closeKinPopup();
+    if (e.target === document.getElementById('kin-popup') && Date.now() - _popupOpenedAt > 1000) closeKinPopup();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
@@ -2742,6 +2957,7 @@ function setupEvents() {
     const dy = e.changedTouches[0].clientY - sy;
     // horizontal intent: far enough sideways AND mostly horizontal
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      haptic('light');
       stepDate(dx > 0 ? -1 : 1); // personal tab → resonant hop; else ±1 day
     }
   }, { passive: true });
@@ -2776,7 +2992,11 @@ function initParticles() {
     [180, 255, 220],
   ];
 
-  const dots = Array.from({ length: 65 }, () => ({
+  // Fewer particles + bail out entirely under prefers-reduced-motion: the
+  // constant rAF redraw competed with touch handling on low-end devices.
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  const COUNT = reduceMotion ? 0 : 36;
+  const dots = Array.from({ length: COUNT }, () => ({
     x: Math.random() * W,
     y: Math.random() * H,
     r: Math.random() * 1.8 + 0.6,
