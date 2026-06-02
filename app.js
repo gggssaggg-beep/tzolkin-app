@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '62';
+const APP_VER = '63';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -966,7 +966,7 @@ function renderWave(kin, tone) {
     html += `<div class="wave-kin-row${isCurrent ? ' current' : ''}" data-wave-kin="${wk}">
       <span class="wave-kin-marker">${isCurrent ? '✦' : ''}</span>
       <span class="wave-kin-img">${sealImg(ws, 28)}</span>
-      <span class="wave-kin-text">${title}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</span>
+      <span class="wave-kin-text">${title}${gap ? '<span class="gap-badge gap-info-btn" data-action="gap-info" title="Портал Галактической Активации — нажмите для пояснения">ГАП</span>' : ''}</span>
       <span class="wave-kin-num">${wk}</span>
     </div>`;
   }
@@ -1204,7 +1204,7 @@ function renderCycles(kin) {
     html += `<div class="${rowCls}" data-wave-kin="${wk}">
       <span class="wave-kin-marker">${isCurrent ? '✦' : ''}</span>
       <span class="wave-kin-img">${sealImg(ws, 28)}</span>
-      <span class="wave-kin-text">${title}${wgap ? '<span class="gap-badge">ГАП</span>' : ''}</span>
+      <span class="wave-kin-text">${title}${wgap ? '<span class="gap-badge gap-info-btn" data-action="gap-info" title="Портал Галактической Активации — нажмите для пояснения">ГАП</span>' : ''}</span>
       <span class="wave-kin-num">${wk}</span>
     </div>`;
   }
@@ -1253,7 +1253,7 @@ function renderTzolkin(currentKin) {
       <span><span class="legend-swatch" style="background:oklch(0.75 0.08 195)"></span>Белый</span>
       <span><span class="legend-swatch" style="background:oklch(0.40 0.16 265)"></span>Синий</span>
       <span><span class="legend-swatch" style="background:oklch(0.72 0.12 85)"></span>Жёлтый</span>
-      <span title="${dsTexts?.gap_portals?.description || ''}"><span class="legend-swatch" style="background:oklch(0.55 0.14 155)"></span>ГАП <span class="legend-hint">ⓘ</span></span>
+      <span data-action="gap-info" style="cursor:pointer" title="${dsTexts?.gap_portals?.description || ''}"><span class="legend-swatch" style="background:oklch(0.55 0.14 155)"></span>ГАП <span class="legend-hint">ⓘ</span></span>
       <span title="Мистическая колонка — 7-й столбец Цолькина (тон 7). 20 дней зеркальной симметрии."><span class="legend-swatch" style="background:rgba(120,100,160,0.4)"></span>Мист. <span class="legend-hint">ⓘ</span></span>
       ${isPro() ? `<span title="${dsTexts?.tzolkin_legend?.magnetic_gates?.legend || ''}"><span class="legend-swatch" style="background:transparent;border:2px solid #fff;border-radius:2px"></span>Врата <span class="legend-hint">ⓘ</span></span>
       <span title="${dsTexts?.tzolkin_legend?.spectral_polar?.legend || ''}"><span class="legend-swatch" style="background:transparent;border:2px solid var(--n-violet);border-radius:50%"></span>Спектр. <span class="legend-hint">ⓘ</span></span>` : ''}
@@ -1410,10 +1410,14 @@ function renderPersonal() {
       <div class="seal-badge ${bColor} c-${bColor}" style="width:80px;height:80px;margin:0 auto 8px">
         ${sealImg(bSeal, 68, true)}
       </div>
-      <div class="kin-num c-${bColor}" style="font-size:36px">${bKin}${bGap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
+      <div class="kin-num c-${bColor}" style="font-size:36px">${bKin}${bGap ? '<span class="gap-badge gap-info-btn" data-action="gap-info">ГАП</span>' : ''}</div>
       <div class="display" style="font-size:14px;margin-top:6px">${bInfo?.title || ''}</div>
       <div class="eyebrow muted" style="margin-top:4px">${formatDateRu(birthD).toUpperCase()}</div>
     </div>
+    ${bGap ? `<div class="gap-personal-note">
+      <span class="gap-badge" style="font-size:11px;vertical-align:middle;margin-right:6px">ГАП</span>
+      Ваш Кин Судьбы — <b>Портал Галактической Активации</b>. Это один из 52 особых кинов в сетке Цолькина, образующих паттерн двойной спирали. Люди с ГАП-кином острее чувствуют энергетические перепады, чаще оказываются в нужном месте в нужное время и живут в режиме повышенной синхронности. <span class="gap-info-btn" data-action="gap-info" style="cursor:pointer;color:var(--n-cyan);font-family:var(--font-mono);font-size:11px">Подробнее →</span>
+    </div>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
       <div style="background:rgba(255,255,255,0.03);border:1px solid var(--hairline-2);border-radius:12px;padding:10px">
         <div class="eyebrow">ПЕЧАТЬ</div>
@@ -2398,7 +2402,17 @@ function bindCardEvents(kin, tone, seal) {
 
   // Status badge popups
   card.querySelectorAll('[data-action="gap-info"]').forEach(el => {
-    el.addEventListener('click', () => showInfoPopup('ПОРТАЛЫ ГАП', `<p class="pp-intro">${dsTexts?.gap_portals?.description || ''}</p>`));
+    el.addEventListener('click', () => showInfoPopup('ПОРТАЛЫ ГАП', `
+      <p class="pp-intro" style="margin-bottom:12px">${dsTexts?.gap_portals?.description || ''}</p>
+      <div class="hr"></div>
+      <div style="font-size:12px;line-height:1.65;color:var(--ink-mid)">
+        <p style="margin-bottom:8px"><b>ГАП</b> расшифровывается как <b>Galactic Activation Portal</b> — Портал Галактической Активации.</p>
+        <p style="margin-bottom:8px">Таких порталов в Цолькине <b>52</b> из 260 кинов (~20%). Они расположены симметрично в сетке по паттерну двойной спирали, напоминающему ДНК.</p>
+        <p>В дни ГАП интенсивность восприятия выше: события ощущаются острее, совпадения — значимее. Это не «опасные» дни, а дни повышенного внимания и готовности к переменам.</p>
+      </div>
+      <div class="hr"></div>
+      <p style="font-size:11px;color:var(--ink-faint);font-style:italic">По системе Дримспелл (Хосе Аргуэльес). Классический майянский календарь этой концепции не содержит.</p>
+    `));
   });
   card.querySelectorAll('[data-action="gate-info"]').forEach(el => {
     el.addEventListener('click', () => showInfoPopup('МАГНИТНЫЕ ВРАТА', `<p class="pp-intro">${dsTexts?.tzolkin_legend?.magnetic_gates?.popup || ''}</p>`));
@@ -2580,6 +2594,7 @@ function bindCardEvents(kin, tone, seal) {
       startX = e.clientX;
       startKin = cyclesKin;
       dragUnit = unit;
+      haptic('selection'); // instant buzz the moment finger touches
       try { strip.setPointerCapture(e.pointerId); } catch (_) {}
       e.preventDefault();
     });
@@ -2587,9 +2602,12 @@ function bindCardEvents(kin, tone, seal) {
     strip.addEventListener('pointermove', (e) => {
       if (!cellW) return;
       const dx = e.clientX - startX;
-      const rawDelta = Math.round((dx / cellW) * unit);
-      let newKin = ((startKin + rawDelta - 1) % 260 + 260) % 260 + 1;
+      // Continuous delta — no rounding so every pixel moves the display
+      const rawDelta = (dx / cellW) * unit;
+      const stepped = Math.round(rawDelta);
+      let newKin = ((startKin + stepped - 1) % 260 + 260) % 260 + 1;
       if (newKin !== cyclesKin) {
+        // Buzz only when crossing a meaningful boundary (castle/wave change)
         if (unit === 52 && castle(newKin) !== castle(cyclesKin)) haptic('light');
         else if (unit === 13 && wavespell(newKin) !== wavespell(cyclesKin)) haptic('selection');
         cyclesKin = newKin;
@@ -2608,7 +2626,6 @@ function bindCardEvents(kin, tone, seal) {
         if (snapped !== cyclesKin) {
           cyclesKin = snapped;
         }
-        if (unit !== 1) haptic('medium');
         updateCyclesActive();
         // Re-render wave kin list when wave/castle changes
         if (unit === 13 || unit === 52) {
