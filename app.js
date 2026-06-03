@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '70';
+const APP_VER = '71';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -107,6 +107,7 @@ function showKinPopup(kin, roleInfo) {
   const popup = document.getElementById('kin-popup-content');
   popup.innerHTML = html;
   document.getElementById('kin-popup').style.display = 'flex';
+  syncScrollLock();
   popup.querySelector('.popup-close-btn').addEventListener('click', closeKinPopup);
   popup.querySelector('#popup-goto').addEventListener('click', () => {
     haptic('medium');
@@ -122,6 +123,15 @@ function showKinPopup(kin, roleInfo) {
 
 function closeKinPopup() {
   document.getElementById('kin-popup').style.display = 'none';
+  syncScrollLock();
+}
+
+/* Freeze the page behind an open overlay so touch-drags scroll the panel, not
+   the background. Driven by whichever overlay is currently visible. */
+function syncScrollLock() {
+  const open = document.getElementById('settings-modal')?.style.display !== 'none'
+    || document.getElementById('kin-popup')?.style.display !== 'none';
+  document.body.classList.toggle('modal-open', open);
 }
 
 /* ── Generic info popup (wave/castle/moon) ── */
@@ -136,6 +146,7 @@ function showInfoPopup(title, bodyHtml) {
     ${bodyHtml}
     <button class="popup-close-btn">✕ ЗАКРЫТЬ</button>`;
   document.getElementById('kin-popup').style.display = 'flex';
+  syncScrollLock();
   popup.querySelector('.popup-close-btn').addEventListener('click', closeKinPopup);
 }
 
@@ -190,15 +201,9 @@ function runVibSelfTest() {
 
   try { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium'); } catch (_) {}
 
-  if (result === false) {
-    showVibToast(
-      '⚠ Вибрация заблокирована браузером.\n\n' +
-      'Chrome → ⋮ → Настройки сайта →\nВибрация → Разрешить для этого сайта\n\n' +
-      'Нажмите чтобы скрыть',
-      12000
-    );
-  }
-  // result === true: вибрация должна работать, ничего не показываем
+  // No first-run toast: the "вибрация заблокирована" banner confused users on
+  // first open. The vibration is still attempted silently above; the full
+  // diagnostic remains available via long-press on the ♫ button.
 }
 
 /* ── Long-press ♫ → extended diagnostic ── */
@@ -1551,7 +1556,7 @@ function renderMayaClassic() {
     <div class="kin-number c-${color}" style="font-size:48px;text-align:center;margin-bottom:4px">${md.tzolkinNum}</div>
     <div class="kin-title" style="font-size:22px;text-align:center;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">${signData.name_yucatec}</div>
     <div class="kin-subtitle" style="text-align:center;margin-bottom:12px">${signData.meaning_ru}</div>
-    <div style="font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+    <div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
       <p>▸ К'ИЧЕ': ${md.tzolkinNum} ${signData.name_kiche}</p>
       <p>▸ НАХУАТЛЬ: ${md.tzolkinNum} ${signData.name_nahuatl}</p>
       <p>▸ КЛАССИЧЕСКОЕ: ${signData.name_classic_proto}</p>
@@ -1734,7 +1739,7 @@ function mayaSignCardHtml(pos) {
         <div class="eyebrow muted" style="margin-top:4px">ЗНАК ${pos} ИЗ 20</div>
       </div>
     </div>
-    <div style="margin-top:12px;font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+    <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
       <p>▸ К'ИЧЕ': ${s.name_kiche}</p>
       <p>▸ НАХУАТЛЬ: ${s.name_nahuatl}</p>
       <p>▸ КЛАССИЧЕСКОЕ: ${s.name_classic_proto}</p>
@@ -1789,7 +1794,7 @@ function mayaSignCardHtml(pos) {
   </div>`;
   if (med.body_system_ru) h += `<div class="detail-section">
     <h3><span class="dot" style="background:var(--n-red);box-shadow:0 0 8px var(--n-red)"></span>МЕДИЦИНА</h3>
-    <div style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.04em;color:var(--ink-dim)">
+    <div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.04em;color:var(--ink-dim)">
       <p>▸ ТЕЛО/СИСТЕМА: ${med.body_system_ru}</p>
       <p>▸ ПО ЖИЗНИ: ${med.watch_life_ru}</p>
       <p>▸ В ДЕНЬ ЗНАКА: ${med.today_ru}</p>
@@ -1946,7 +1951,7 @@ function renderMayaPersonal() {
     <div class="kin-number c-${color}" style="font-size:44px;text-align:center">${md.tzolkinNum}</div>
     <div class="kin-title" style="font-size:22px;text-align:center;text-transform:uppercase;letter-spacing:0.1em">${s.name_yucatec}</div>
     <div class="kin-subtitle" style="text-align:center;margin-bottom:10px">${s.meaning_ru}</div>
-    <div style="font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
+    <div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
       <p>▸ К'ИЧЕ': ${md.tzolkinNum} ${s.name_kiche} (${numData.name_kiche})</p>
       <p>▸ НАХУАТЛЬ: ${md.tzolkinNum} ${s.name_nahuatl}</p>
       <p>▸ ХААБ РОЖДЕНИЯ: ${md.dayInMonth} ${monthData.name} (${monthData.name_ru})</p>
@@ -2091,7 +2096,7 @@ function renderMayaMedicine() {
     const bc = mayaSignColor(bS);
     h += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-${bc});box-shadow:0 0 8px var(--n-${bc})"></span>ПО ЖИЗНИ · НАВ'АЛЬ ${bS.name_yucatec}</h3>
       <div style="display:flex;gap:10px;align-items:center;margin:8px 0">${sealImg(bMd.tzolkinSign, 40)}<div class="eyebrow muted">знак рождения · на что обращать внимание по жизни</div></div>
-      <div style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.04em;color:var(--ink-dim)">
+      <div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.04em;color:var(--ink-dim)">
         <p>▸ ТЕЛО/СИСТЕМА: ${bMed.body_system_ru || '—'}</p>
         <p>▸ ВНИМАНИЕ: ${bMed.watch_life_ru || '—'}</p>
         <p>▸ ВАШ ДАР: ${bMed.healer_gift_ru || '—'}</p>
@@ -2102,7 +2107,7 @@ function renderMayaMedicine() {
   const tc = mayaSignColor(todayS);
   h += `<div class="detail-section"><h3><span class="dot" style="background:var(--n-${tc});box-shadow:0 0 8px var(--n-${tc})"></span>СЕГОДНЯ · ${todayMd.tzolkinNum} ${todayS.name_yucatec}</h3>
     <div style="display:flex;gap:10px;align-items:center;margin:8px 0">${sealImg(todayMd.tzolkinSign, 40)}<div class="eyebrow muted">${formatDateRu(currentDate).toUpperCase()}</div></div>
-    <div style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.04em;color:var(--ink-dim)">
+    <div style="font-family:var(--font-mono);font-size:13px;letter-spacing:0.04em;color:var(--ink-dim)">
       <p>▸ ТЕЛО/СИСТЕМА: ${todayMed.body_system_ru || '—'}</p>
       <p>▸ БЛАГОПРИЯТНО: ${todayMed.today_ru || '—'}</p>
     </div></div>`;
@@ -2830,11 +2835,13 @@ function renderSettings() {
 function showSettingsModal() {
   haptic('selection');
   document.getElementById('settings-modal').style.display = 'flex';
+  syncScrollLock();
   renderSettings();
 }
 
 function closeSettingsModal() {
   document.getElementById('settings-modal').style.display = 'none';
+  syncScrollLock();
 }
 
 /* ── Setup permanent events ── */

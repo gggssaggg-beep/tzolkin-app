@@ -14,8 +14,8 @@
 
   --ink: #e8e2ff;
   --ink-mid: rgba(232, 226, 255, 0.82);   /* was used but never defined → text fell back to UA black */
-  --ink-dim: rgba(232, 226, 255, 0.65);
-  --ink-faint: rgba(232, 226, 255, 0.38);
+  --ink-dim: rgba(232, 226, 255, 0.72);
+  --ink-faint: rgba(232, 226, 255, 0.55);  /* lifted from 0.38 — captions/hints were unreadable */
 
   /* 4 sacred neons */
   --n-red:    oklch(0.72 0.22 22);
@@ -598,10 +598,10 @@ html, body {
 .section-intro,
 .detail-section .section-intro,
 .expand-panel .section-intro {
-  font-size: 12px;
-  color: var(--ink-faint);
+  font-size: 13px;
+  color: var(--ink-dim);
   font-style: italic;
-  line-height: 1.3;
+  line-height: 1.4;
   margin: 4px 0 0;
   border-bottom: 1px solid var(--hairline);
   padding-bottom: 8px;
@@ -1115,9 +1115,16 @@ html, body {
   width: 100%;
   max-height: 80vh;
   overflow-y: auto;
+  /* keep the touch scroll inside the panel — don't chain to the page behind */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   animation: fadeIn .3s ease;
   backdrop-filter: blur(12px);
 }
+/* While an overlay is open, freeze the page behind it so drags scroll the
+   panel, not the background. */
+body.modal-open { overflow: hidden; }
 .modal-content h3 {
   font-family: var(--font-mono);
   text-transform: uppercase;
@@ -1258,6 +1265,9 @@ html, body {
   width: 100%;
   max-height: 75vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   animation: fadeIn .2s ease;
   backdrop-filter: blur(12px);
 }
@@ -1500,10 +1510,10 @@ html, body {
 
 /* Unified popup sections */
 .pp-intro {
-  font-size: 12px;
-  color: var(--ink-faint);
+  font-size: 13px;
+  color: var(--ink-dim);
   font-style: italic;
-  line-height: 1.3;
+  line-height: 1.4;
   margin: 0 0 10px;
   font-family: var(--font-body);
   text-transform: none;
@@ -1743,7 +1753,7 @@ html, body {
 .cruz-cell.bottom { grid-column: 2; grid-row: 3; }
 .cruz-cell.right { grid-column: 3; grid-row: 2; }
 .cruz-cell.left { grid-column: 1; grid-row: 2; }
-.cruz-label { font-size: 9px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); }
+.cruz-label { font-size: 10px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); }
 .cruz-center-label { color: var(--n-amber); font-weight: 700; }
 .cruz-seal { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .cruz-nawal-name { font-size: 11px; font-weight: 600; color: var(--ink); text-align: center; }
@@ -1785,7 +1795,7 @@ html, body {
 .maya-num-row:last-child { border-bottom: none; }
 .maya-num-dots { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 34px; }
 .maya-num-dots .mnr-num { font-family: var(--font-mono); font-size: 11px; color: var(--n-cyan); font-weight: 600; }
-.maya-num-text { font-size: 12px; line-height: 1.5; color: var(--ink-mid); }
+.maya-num-text { font-size: 13px; line-height: 1.5; color: var(--ink-mid); }
 
 .maya-grid-nav { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; margin-top: 4px; }
 .mgn-btn { padding: 8px 6px; border: 1px solid var(--hairline); border-radius: 10px; background: rgba(255,190,0,0.08); color: var(--ink); font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; white-space: nowrap; touch-action: manipulation; }
