@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '71';
+const APP_VER = '72';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -734,7 +734,7 @@ function renderMain(kin, tone, seal) {
     <div class="kin-header">
       <div class="tone-above">${toneImg(tone, 36)}</div>
       <div class="seal-badge ${color} c-${color}">${sealImg(seal, 80, true)}</div>
-      <div class="kin-number c-${color}">${kin}${gap ? '<span class="gap-badge">ГАП</span>' : ''}</div>
+      <div class="kin-number c-${color}">${kin}${gap ? '<span class="gap-badge gap-info-btn" data-action="gap-info">ГАП</span>' : ''}</div>
       <div class="kin-title">${info.title}</div>
       <div class="kin-subtitle">${sealInfo.name_maya} · ${toneImg(tone, 18)} ТОН ${tone} — ${toneInfo.name_ru}</div>
     </div>`;
@@ -755,9 +755,10 @@ function renderMain(kin, tone, seal) {
       </div>
     </div>`;
 
-  // Compact status badges
+  // Compact status badges. The ГАП marker now lives only on the kin number
+  // (red badge, tappable) — the separate green pill here was a duplicate in an
+  // off-palette colour, so it's gone.
   const badges = [];
-  if (gap) badges.push(`<span class="status-badge gap-bg" data-action="gap-info">ГАП</span>`);
   if (isPro()) {
     if (tone === 1) badges.push(`<span class="status-badge gate-bg" data-action="gate-info">МАГНИТНЫЕ ВРАТА</span>`);
     const spKins = dsTexts?.tzolkin_legend?.spectral_polar?.kins || [];
@@ -1551,7 +1552,7 @@ function renderMayaClassic() {
   html += `<div class="kin-card">
     <div class="eyebrow" style="text-align:center;margin-bottom:10px;letter-spacing:0.18em">КЛАССИЧЕСКИЙ МАЙЯ · GMT 584283</div>
     <p class="section-intro" style="text-align:center;border:none;padding:0;margin:0 0 10px">Живой счёт К'иче'-майя Гватемалы. Непрерывная традиция, сохранённая с доколумбовых времён.</p>
-    <div style="text-align:center;margin-bottom:4px">${toneImg(md.tzolkinNum, 34)}</div>
+    <div style="text-align:center;margin-bottom:8px"><span class="maya-num-hero c-${color}">${mayaDots(md.tzolkinNum)}</span></div>
     <div style="text-align:center"><div class="seal-badge ${color} c-${color}" style="width:84px;height:84px;margin-bottom:8px">${sealImg(md.tzolkinSign, 72, true)}</div></div>
     <div class="kin-number c-${color}" style="font-size:48px;text-align:center;margin-bottom:4px">${md.tzolkinNum}</div>
     <div class="kin-title" style="font-size:22px;text-align:center;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">${signData.name_yucatec}</div>
@@ -1629,12 +1630,16 @@ function renderMayaClassic() {
   const { tone: dsT, seal: dsS } = kinToToneSeal(dsKin);
   const dsSeal = sealsData[dsS];
   const dsTone = tonesData[dsT];
+  // Both counts advance +1/day and wrap at 260, so their phase offset is a fixed
+  // constant (44) — compute it instead of the old wrong, year-stamped "≈57 (2026)".
+  const classicKin = kinFromToneSeal(md.tzolkinNum, md.tzolkinSign);
+  const countShift = ((dsKin - classicKin) % 260 + 260) % 260;
   html += `<div class="detail-section">
     <h3><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>VS ДРИМСПЕЛЛ</h3>
     <div style="margin-top:12px;font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
       <p>▸ КЛАССИЧЕСКИЙ МАЙЯ: ${md.tzolkinNum} ${signData.name_yucatec}</p>
       <p>▸ ДРИМСПЕЛЛ: КИН ${dsKin} · ТОН ${dsT} ${dsTone.name_ru} · ${dsSeal.name_ru}</p>
-      <p>▸ РАЗНИЦА: ≈57 ДНЕЙ (2026)</p>
+      <p>▸ СДВИГ СЧЁТА: ${countShift} ДН. (ДРИМСПЕЛЛ ВПЕРЕДИ)</p>
     </div>
     <p style="font-size:11px;color:var(--ink-faint);margin-top:8px">Дримспелл (Х. Аргуэльес, 1992) — авторская New Age-интерпретация, не классический счёт. Живая традиция К'иче'-майя Гватемалы сохранила непрерывный счёт, совпадающий с корреляцией GMT.</p>
   </div>`;
@@ -1661,9 +1666,9 @@ function renderMayaClassic() {
     const gc = lc.great_cycle;
     html += `</div>
     <div class="maya-great-cycle" style="margin-top:12px;padding:10px 12px;background:rgba(255,190,0,0.06);border-left:2px solid var(--n-amber);border-radius:4px">
-      <div style="font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--n-amber)">▸ ВЕЛИКИЙ ЦИКЛ</div>
+      <div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--n-amber)">▸ ВЕЛИКИЙ ЦИКЛ</div>
       <div style="font-family:var(--font-mono);font-size:13px;color:var(--ink-mid);margin-top:4px">13 Б'АКТ'УНОВ = 1 872 000 ДНЕЙ ≈ 5 125 ЛЕТ</div>
-      <p style="margin-top:6px;font-size:12px">${gc.note}</p>
+      <p style="margin-top:6px;font-size:13px">${gc.note}</p>
     </div>
     <p style="font-size:11px;color:var(--ink-faint);margin-top:8px">Единицы Пиктун и выше (7885+ лет) использовались в мифологических надписях — например, в Паленке, где рождение бога-покровителя записано за миллионы лет до наших дней.</p>
   </div>`;
@@ -1683,14 +1688,14 @@ function renderMayaClassic() {
       const icon = bodyIcons[cycle.body] || '●';
       const c = bodyColors[cycle.body] || 'cyan';
       html += `<div style="margin-top:14px;padding:10px 12px;background:rgba(0,0,0,0.2);border-left:2px solid var(--n-${c});border-radius:4px">
-        <div style="font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--n-${c})">${icon} ${cycle.body}</div>`;
+        <div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--n-${c})">${icon} ${cycle.body}</div>`;
       if (cycle.synodic_period_days || cycle.synodic_period_days_jupiter) {
         const period = cycle.synodic_period_days
           ? `синодический период: ${cycle.synodic_period_days} дн.${cycle.maya_approximation ? ' → майя: ' + cycle.maya_approximation + ' дн.' : ''}`
           : `Юпитер: ${cycle.synodic_period_days_jupiter} дн. · Сатурн: ${cycle.synodic_period_days_saturn} дн.`;
         html += `<div style="font-size:11px;color:var(--ink-faint);margin-top:3px">${period}</div>`;
       }
-      html += `<ul style="margin:8px 0 0 0;padding-left:16px;font-size:12px;color:var(--ink-mid)">`;
+      html += `<ul style="margin:8px 0 0 0;padding-left:16px;font-size:13px;color:var(--ink-mid)">`;
       for (const cor of cycle.correlations) {
         html += `<li style="margin-bottom:4px">${cor}</li>`;
       }
@@ -1704,7 +1709,7 @@ function renderMayaClassic() {
       html += `</div>`;
     }
 
-    html += `<div style="margin-top:12px;font-size:10px;color:var(--ink-faint);line-height:1.5">
+    html += `<div style="margin-top:12px;font-size:11px;color:var(--ink-faint);line-height:1.5">
       Источники: ${ac.sources.join(' · ')}
     </div>
   </div>`;
@@ -1946,7 +1951,7 @@ function renderMayaPersonal() {
   let h = mayaBrandHeader('мой нав\'аль');
   h += `<div class="kin-card">
     <div class="eyebrow" style="text-align:center;letter-spacing:0.18em;margin-bottom:8px">МОЙ НАВ'АЛЬ · ${formatDateRu(birthD).toUpperCase()}</div>
-    <div style="text-align:center;margin-bottom:4px">${toneImg(md.tzolkinNum, 34)}</div>
+    <div style="text-align:center;margin-bottom:8px"><span class="maya-num-hero c-${color}">${mayaDots(md.tzolkinNum)}</span></div>
     <div style="text-align:center"><div class="seal-badge ${color} c-${color}" style="width:84px;height:84px;margin-bottom:8px">${sealImg(md.tzolkinSign, 72, true)}</div></div>
     <div class="kin-number c-${color}" style="font-size:44px;text-align:center">${md.tzolkinNum}</div>
     <div class="kin-title" style="font-size:22px;text-align:center;text-transform:uppercase;letter-spacing:0.1em">${s.name_yucatec}</div>
