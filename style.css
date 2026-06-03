@@ -41,7 +41,7 @@
    touch-action isn't inherited, so it must be set on the elements themselves —
    this is a big part of "the UI responds late". Cycle strips keep their own
    inline touch-action (pan-y) and are intentionally excluded. */
-button, a, .tab, .nav-btn, .tzolkin-cell, .oracle-cell, .oracle-row, .wave-kin-row,
+button, a, .tab, .nav-btn, .oracle-cell, .oracle-row, .wave-kin-row,
 .moon-clickable, .music-btn, .settings-btn, .date-tap, .info-item,
 [data-action], [data-popup-kin], [data-tz-kin] {
   touch-action: manipulation;
@@ -936,7 +936,7 @@ html, body {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Tzolkin grid
+   Tzolkin grid — shared wrapper + old-style cell (kept for legacy)
    ───────────────────────────────────────────────────────────── */
 .tzolkin-grid-wrapper {
   margin-bottom: 12px;
@@ -946,113 +946,86 @@ html, body {
   padding: 4px;
   overflow-x: auto;
 }
-.tzolkin-grid {
+/* ─────────────────────────────────────────────────────────────
+   Tzolk'in GLYPH grid — dark tiles, large neon seal, tone number
+   (replaced the old dots/bars matrix entirely)
+   ───────────────────────────────────────────────────────────── */
+.tglyph-wrapper {
+  background: oklch(0.10 0.03 270);
+  border-color: rgba(255,255,255,0.08);
+  padding: 5px;
+}
+.tglyph-grid {
   display: grid;
-  /* Cells stretch to fill width, but never shrink below a readable floor
-     (~size of a КИН/seal icon). Below that the wrapper scrolls horizontally
-     instead of collapsing into illegible specks on narrow (<360px) screens. */
-  --tz-cell-min: 24px;
-  grid-template-columns: 26px repeat(13, minmax(var(--tz-cell-min), 1fr));
+  /* No row-header column — 13 columns fill the width uniformly. 24px floor +
+     3px gaps ≈ 348px, fits a 360px phone without horizontal scroll. */
+  --tg-min: 24px;
+  grid-template-columns: repeat(13, minmax(var(--tg-min), 1fr));
   grid-template-rows: repeat(20, auto);
   gap: 3px;
-  /* 26px row-header + 13×min cell + 14 gaps → the hard floor before scroll */
-  min-width: calc(26px + 13 * var(--tz-cell-min) + 28px);
+  min-width: calc(13 * var(--tg-min) + 12 * 3px);
 }
-.tzolkin-header-cell {
+@media (min-width: 768px) { .tglyph-grid { --tg-min: 34px; gap: 4px; } }
+
+/* Base tile — dark, neutral-ish; the pre-coloured neon glyph IS the colour cue,
+   so tiles stay dark enough that every glyph pops (no red-on-red mud). */
+.tglyph-cell {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
   gap: 1px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--ink-faint);
-}
-.tzolkin-header-cell.mystic { color: var(--ink-dim); background: rgba(255,255,255,.04); }
-.tzolkin-row-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.tzolkin-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-size: 8px;
-  font-weight: 700;
-  border-radius: 7px;
+  padding: 3px 2px 2px;
+  border-radius: 9px;
   cursor: pointer;
-  transition: transform .12s ease, box-shadow .2s ease;
-  min-height: 32px;
-  aspect-ratio: 1 / 1;
   position: relative;
-  gap: 2px;
-  padding: 2px 0;
-  /* min-width:0 stops a wide kin number (e.g. "260") from forcing the grid
-     track past 1fr — that overflow is what made cells overlap on MIUI/Xiaomi. */
   min-width: 0;
   overflow: hidden;
-  /* Subtle top-light / bottom-shadow gem effect on every tile, regardless of
-     its flat colour (set via background-COLOR in the colour classes below). */
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.13), rgba(0,0,0,0.14));
+  transition: transform .12s ease, box-shadow .2s ease;
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.22) 100%);
 }
-/* Only real pointers get the zoom-on-hover. On touch, :hover sticks after a
-   tap and left the enlarged cell overlapping its neighbours. */
-@media (hover: hover) {
-  .tzolkin-cell:hover { transform: scale(1.15); z-index: 2; }
-}
-.tzolkin-cell:active { transform: scale(0.95); }
+@media (hover: hover) { .tglyph-cell:hover { transform: scale(1.1); z-index: 2; } }
+.tglyph-cell:active { transform: scale(0.93); }
 
-/* Neon colors for tzolkin cells — softened a touch so the grid reads as a
-   harmonious palette rather than four clashing blocks. Set via background-COLOR
-   so the .tzolkin-cell gradient overlay (gem depth) survives. */
-.tzolkin-cell.color-red    { background-color: oklch(0.53 0.13 25);  color: #fff; }
-.tzolkin-cell.color-cyan   { background-color: oklch(0.80 0.07 200); color: #0a0420; }
-.tzolkin-cell.color-blue   { background-color: oklch(0.48 0.14 262); color: #fff; }
-.tzolkin-cell.color-amber  { background-color: oklch(0.78 0.11 88);  color: #0a0420; }
-.tzolkin-cell.color-gap    { background-color: oklch(0.60 0.12 158); color: #fff; }
-.tzolkin-cell.color-mystic { background-color: rgba(140,120,180,0.38); color: var(--ink-dim); }
+/* Per-colour tile tints: dark + low chroma so the bright glyph always wins on
+   lightness contrast, while the faint hue still groups the four colours. */
+.tgc-red    { background-color: oklch(0.21 0.055 25); }
+.tgc-white  { background-color: oklch(0.23 0.018 220); }
+.tgc-blue   { background-color: oklch(0.20 0.06 265); }
+.tgc-yellow { background-color: oklch(0.23 0.05 90); }
+/* GAP + mystic are SPECIAL cells — noticeably brighter & more saturated than the
+   four normal tints so they clearly stand out (the glyph glow keeps it legible). */
+.tgc-gap    { background-color: oklch(0.34 0.13 156); }
+.tgc-mystic { background-color: oklch(0.33 0.085 295); }
 
-/* Special markers use INSET RINGS, not shape changes — every tile keeps the
-   same rounded-square silhouette, so the grid no longer mixes circles & squares.
-   Cascade order = priority: current > birth > spectral > magnetic-gate. */
-.tzolkin-cell.mag-gate {
-  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.65);
-}
-.tzolkin-cell.spectral-polar {
-  box-shadow: inset 0 0 0 1.5px var(--n-violet), 0 0 6px color-mix(in oklab, var(--n-violet) 45%, transparent);
-}
-.tzolkin-cell.birth-kin {
-  box-shadow: inset 0 0 0 2px var(--n-cyan), 0 0 8px color-mix(in oklab, var(--n-cyan) 55%, transparent);
-  z-index: 1;
-}
-.tzolkin-cell.current-kin {
-  box-shadow: inset 0 0 0 2.5px #fff, 0 0 14px rgba(255,255,255,.75);
-  z-index: 3;
-  transform: scale(1.12);
+/* Seal glyph — the hero. It already ships pre-coloured + pre-glowed, so we add
+   NOTHING but a tiny grounding shadow. Sized responsively so it never clips. */
+.tgc-glyph {
+  display: block;
+  width: 82%;
+  max-width: 34px;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55));
 }
 
-/* The KIN number is the hero of each cell: centered, bold, sits below the
-   small tone-numeral (dots/bars). Explicit width+text-align guarantees it
-   stays centered instead of hugging the left edge. */
-.tz-kin-num {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  width: 100%;
-  text-align: center;
-  letter-spacing: -0.02em;
-  /* Legible on ANY cell — white glyph + dark outline reads on both the light
-     (cyan/amber) and dark (red/blue/gap) cells. Fixes "чёрные цифры не видно". */
+/* Tone number — crisp white for universal legibility on any tile. */
+.tgc-tone {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
   color: #fff;
-  text-shadow: 0 0 2px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.8), 0 1px 1px rgba(0,0,0,0.9);
+  line-height: 1;
+  text-shadow: 0 0 3px rgba(0,0,0,0.9), 0 1px 1px rgba(0,0,0,0.9);
 }
-/* Tone numeral inside a grid cell = subtle texture, not a competing element.
-   The kin number is the hero; these dots/bars sit quietly above it. */
-.tzolkin-cell .maya-num { opacity: 0.62; }
+
+/* Markers — inset rings, same vocabulary across the app.
+   Priority via cascade order: current > birth > spectral > mag-gate. */
+.tglyph-cell.mag-gate       { box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.5); }
+.tglyph-cell.spectral-polar { box-shadow: inset 0 0 0 1.5px var(--n-violet), 0 0 8px color-mix(in oklab, var(--n-violet) 55%, transparent); }
+.tglyph-cell.birth-kin      { box-shadow: inset 0 0 0 2px var(--n-cyan), 0 0 10px color-mix(in oklab, var(--n-cyan) 60%, transparent); z-index: 1; }
+.tglyph-cell.current-kin    { box-shadow: inset 0 0 0 2.5px #fff, 0 0 16px rgba(255,255,255,.85); z-index: 3; transform: scale(1.14); }
 
 /* Tzolkin legend */
 .tzolkin-legend {
@@ -1071,12 +1044,16 @@ html, body {
   align-items: center;
   gap: 4px;
 }
+.tzolkin-legend span[data-action] { cursor: pointer; }
 .legend-swatch {
   display: inline-block;
   width: 14px;
   height: 14px;
-  border-radius: 3px;
+  border-radius: 4px;
 }
+/* Врата & Спектр are both ring-markers now — identical rounded-square shape,
+   differ only by border colour (set inline). */
+.legend-ring { background: transparent; border: 2px solid; }
 
 /* Maya numeral dots & bars */
 .maya-num {
@@ -1691,15 +1668,8 @@ html, body {
   #nav {
     padding: 20px 0 16px;
   }
-  .tzolkin-cell {
-    min-height: 42px;
-  }
-  .tz-kin-num { font-size: 11px; }
   .maya-bar { width: 14px; height: 3px; }
   .maya-dot { width: 3px; height: 3px; }
-  .tzolkin-grid {
-    grid-template-columns: 32px repeat(13, minmax(28px, 1fr));
-  }
   .oracle-cross {
     gap: 8px;
   }
@@ -1716,10 +1686,6 @@ html, body {
   .kin-card, .detail-section, .affirmation {
     padding: 28px 26px;
   }
-  .tzolkin-cell {
-    min-height: 48px;
-  }
-  .tz-kin-num { font-size: 12px; }
 }
 
 /* ─────────────────────────────────────────────────────────────

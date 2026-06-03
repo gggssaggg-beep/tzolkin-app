@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '64';
+const APP_VER = '69';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -111,7 +111,6 @@ function showKinPopup(kin, roleInfo) {
 
   const popup = document.getElementById('kin-popup-content');
   popup.innerHTML = html;
-  _popupOpenedAt = Date.now();
   document.getElementById('kin-popup').style.display = 'flex';
   popup.querySelector('.popup-close-btn').addEventListener('click', closeKinPopup);
   popup.querySelector('#popup-goto').addEventListener('click', () => {
@@ -125,8 +124,6 @@ function showKinPopup(kin, roleInfo) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 }
-
-let _popupOpenedAt = 0;
 
 function closeKinPopup() {
   document.getElementById('kin-popup').style.display = 'none';
@@ -143,7 +140,6 @@ function showInfoPopup(title, bodyHtml) {
     </h3>
     ${bodyHtml}
     <button class="popup-close-btn">✕ ЗАКРЫТЬ</button>`;
-  _popupOpenedAt = Date.now();
   document.getElementById('kin-popup').style.display = 'flex';
   popup.querySelector('.popup-close-btn').addEventListener('click', closeKinPopup);
 }
@@ -278,10 +274,11 @@ function toggleMusic() {
 async function loadData() {
   const f = (url) => fetch(url).then(r => { if (!r.ok) throw new Error(url); return r.json(); });
   const [s, t, k, m] = await Promise.all([f('data/seals.json'), f('data/tones.json'), f('data/kin_descriptions.json'), f('data/maya_classic.json')]);
-  sealsData = {};
-  for (const [id, val] of Object.entries(s.seals)) sealsData[+id] = val;
-  tonesData = {};
-  for (const [id, val] of Object.entries(t.tones)) tonesData[+id] = val;
+  // Object keys are always strings, so the JSON maps ("1".."20") are already
+  // keyed identically to a numeric lookup like sealsData[seal] — no rebuild loop
+  // needed; assign the parsed maps directly.
+  sealsData = s.seals;
+  tonesData = t.tones;
   kinsData = k.kins;
   mayaData = m;
   try { dsTexts = await f('data/dreamspell_texts.json'); } catch (_) { dsTexts = {}; }
@@ -483,12 +480,14 @@ function findResonantDay(from, dir, bKin) {
   return null;
 }
 
+/** The user's stored birth date as a real local Date, or null if unset/invalid.
+ * Single source of truth for the ~7 places that need the birth date — all reuse
+ * parseInputDate's validation instead of re-implementing the split/parse. */
+function storedBirthDate() { return parseInputDate(localStorage.getItem('birthDate')); }
+
 function birthKinOrNull() {
-  const s = localStorage.getItem('birthDate');
-  if (!s) return null;
-  const [y, m, d] = s.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  return isNaN(dt.getTime()) ? null : dreamspellKin(dt);
+  const d = storedBirthDate();
+  return d ? dreamspellKin(d) : null;
 }
 
 /** Resolve an ISO YYYY-MM-DD birth date from a <input type=date> value and/or a
@@ -959,7 +958,7 @@ function renderWave(kin, tone) {
   html += `<div class="kin-card"><h3 class="card-title"><span class="dot"></span> КИНЫ ВОЛНЫ</h3><p class="section-intro">13 кинов текущей волны. Нажмите на кин, чтобы перейти к этому дню.</p><div style="margin-top:8px">`;
   for (let i = 0; i < 13; i++) {
     const wk = waveFirst + i;
-    const { tone: wt, seal: ws } = kinToToneSeal(wk);
+    const { seal: ws } = kinToToneSeal(wk);
     const isCurrent = wk === kin;
     const gap = isGap(wk);
     const title = kinsData[String(wk)]?.title || '';
@@ -1188,7 +1187,7 @@ function renderCycles(kin) {
     <div style="margin-top:8px">`;
   for (let i = 0; i < 13; i++) {
     const wk = waveFirst + i;
-    const { tone: wt, seal: ws } = kinToToneSeal(wk);
+    const { seal: ws } = kinToToneSeal(wk);
     const isCurrent = wk === kin;
     const wgap = isGap(wk);
     const title = kinsData[String(wk)]?.title || '';
@@ -1238,63 +1237,73 @@ function mayaDots(tone) {
 
 /* ── Tab: Tzolkin calendar grid ── */
 function renderTzolkin(currentKin) {
-  const birthDateStr = localStorage.getItem('birthDate');
-  let birthKin = null;
-  if (birthDateStr) {
-    const [y, m, d] = birthDateStr.split('-').map(Number);
-    birthKin = dreamspellKin(new Date(y, m - 1, d));
-  }
+  const birthKin = birthKinOrNull();
 
-  // Neon legend colors
-  let html = `<div class="kin-card" style="padding:10px">
+  const html = `<div class="kin-card" style="padding:10px">
     <h3 class="card-title" style="font-size:12px"><span class="dot"></span> ЦОЛЬКИН — 260-ДНЕВНЫЙ ЦИКЛ</h3>
     <div class="tzolkin-legend">
-      <span><span class="legend-swatch" style="background:oklch(0.45 0.15 22)"></span>Красный</span>
-      <span><span class="legend-swatch" style="background:oklch(0.75 0.08 195)"></span>Белый</span>
-      <span><span class="legend-swatch" style="background:oklch(0.40 0.16 265)"></span>Синий</span>
-      <span><span class="legend-swatch" style="background:oklch(0.72 0.12 85)"></span>Жёлтый</span>
-      <span data-action="gap-info" style="cursor:pointer" title="${dsTexts?.gap_portals?.description || ''}"><span class="legend-swatch" style="background:oklch(0.55 0.14 155)"></span>ГАП <span class="legend-hint">ⓘ</span></span>
-      <span title="Мистическая колонка — 7-й столбец Цолькина (тон 7). 20 дней зеркальной симметрии."><span class="legend-swatch" style="background:rgba(120,100,160,0.4)"></span>Мист. <span class="legend-hint">ⓘ</span></span>
-      ${isPro() ? `<span title="${dsTexts?.tzolkin_legend?.magnetic_gates?.legend || ''}"><span class="legend-swatch" style="background:transparent;border:2px solid #fff;border-radius:2px"></span>Врата <span class="legend-hint">ⓘ</span></span>
-      <span title="${dsTexts?.tzolkin_legend?.spectral_polar?.legend || ''}"><span class="legend-swatch" style="background:transparent;border:2px solid var(--n-violet);border-radius:50%"></span>Спектр. <span class="legend-hint">ⓘ</span></span>` : ''}
+      <span data-action="gap-info"><span class="legend-swatch" style="background:oklch(0.66 0.16 158)"></span>ГАП <span class="legend-hint">ⓘ</span></span>
+      <span data-action="mystic-info"><span class="legend-swatch" style="background:oklch(0.62 0.10 295)"></span>Мистич. <span class="legend-hint">ⓘ</span></span>
+      ${isPro() ? `<span data-action="gate-info"><span class="legend-swatch legend-ring" style="border-color:rgba(255,255,255,0.85)"></span>Врата <span class="legend-hint">ⓘ</span></span>
+      <span data-action="sp-info"><span class="legend-swatch legend-ring" style="border-color:var(--n-violet)"></span>Спектр. <span class="legend-hint">ⓘ</span></span>` : ''}
     </div>
-  </div>`;
+  </div>`
+    + tzolkinGlyphGrid(currentKin, birthKin);
 
-  html += `<div class="tzolkin-grid-wrapper"><div class="tzolkin-grid">`;
+  return html;
+}
 
+/* Build the Tzolk'in-style 260-kin matrix: dark tiles, large seal glyph in the
+   sign's neon color, tone number below. No separate row-header column — the
+   glyph IS the row identifier. All marker logic (GAP / current / birth /
+   mag-gate / spectral-polar) lives here once. */
+function tzolkinGlyphGrid(currentKin, birthKin) {
   const kin1Date = addDays(currentDate, -(currentKin - 1));
+  let html = `<div class="tzolkin-grid-wrapper tglyph-wrapper"><div class="tglyph-grid">`;
 
   for (let seal = 1; seal <= 20; seal++) {
-    html += `<div class="tzolkin-row-header">${sealImg(seal, 22)}</div>`;
+    const colorKey = COLOR_RU[SEAL_COLORS[seal]];   // 'red'|'white'|'blue'|'yellow'
+    const glyph = `img/seal_${String(seal).padStart(2, '0')}.png`;
     for (let col = 0; col < 13; col++) {
       const k = seal + col * 20;
       const tone = (k - 1) % 13 + 1;
       const gap = isGap(k);
       const isMystic = col === 6;
-      const isCurrent = k === currentKin;
-      const isBirth = k === birthKin;
-      let colorCls;
-      if (gap) colorCls = 'color-gap';
-      else if (isMystic) colorCls = 'color-mystic';
-      else colorCls = 'color-' + sealColor(seal);
       const isMagGate = tone === 1;
-      const isSpectralPolar = [50, 115, 180, 245].includes(k);
-      let cls = `tzolkin-cell ${colorCls}`;
-      if (isCurrent) cls += ' current-kin';
-      if (isBirth) cls += ' birth-kin';
-      if (isMagGate) cls += ' mag-gate';
-      if (isSpectralPolar) cls += ' spectral-polar';
+      const isSpectralPolar = k === 50 || k === 115 || k === 180 || k === 245;
+
+      let cls = 'tglyph-cell';
+      if (gap)             cls += ' tgc-gap';
+      else if (isMystic)   cls += ' tgc-mystic';
+      else                 cls += ` tgc-${colorKey}`;
+      if (k === currentKin) cls += ' current-kin';
+      if (k === birthKin)   cls += ' birth-kin';
+      if (isMagGate)        cls += ' mag-gate';
+      if (isSpectralPolar)  cls += ' spectral-polar';
+
       const d = addDays(kin1Date, k - 1);
-      let titleStr = `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()} · Кин ${k}`;
-      if (isSpectralPolar) titleStr = `Кин ${k} · Спектральный Полярный — транспортирует галактический спектр`;
-      else if (isMagGate) titleStr = `Кин ${k} · Магнитные Врата — открывает Волну ${Math.ceil(k / 13)}`;
-      else if (gap) titleStr += ' · ГАП';
-      html += `<div class="${cls}" data-tz-kin="${k}" title="${titleStr}">${mayaDots(tone)}<span class="tz-kin-num">${k}</span></div>`;
+      let title = `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()} · Кин ${k} · Тон ${tone}`;
+      if (isSpectralPolar) title = `Кин ${k} · Спектральный Полярный`;
+      else if (isMagGate)  title = `Кин ${k} · Магнитные Врата — открывает Волну ${Math.ceil(k / 13)}`;
+      else if (gap)        title += ' · ГАП';
+
+      html += `<div class="${cls}" data-tz-kin="${k}" title="${title}">`
+        + `<img src="${glyph}" class="tgc-glyph" width="34" height="34" alt="" loading="lazy">`
+        + `<span class="tgc-tone">${tone}</span></div>`;
     }
   }
+  return html + `</div></div>`;
+}
 
-  html += `</div></div>`;
-  return html;
+/** Birth-date entry form (date picker + free-text fallback). Identical on the
+ * Dreamspell and Maya personal tabs — extracted to remove the copy-paste. */
+function birthInputForm() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  return `<div class="birth-input-group">
+        <input type="date" id="birth-date-input" value="1990-01-01" min="1900-01-01" max="${todayStr}">
+        <button id="birth-save-btn">OK</button>
+      </div>
+      <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;text-align:center">Или введите текстом: <input type="text" id="birth-text-input" placeholder="26.07.1990" style="background:rgba(255,255,255,0.06);border:1px solid var(--hairline-2);border-radius:8px;color:var(--ink);padding:4px 8px;font-family:var(--font-mono);font-size:12px;width:100px;text-align:center"></p>`;
 }
 
 /* ── Tab: Personal (Мой Кин) ── */
@@ -1302,20 +1311,14 @@ function renderPersonal() {
   const birthDateStr = localStorage.getItem('birthDate');
 
   if (!birthDateStr) {
-    const todayStr = new Date().toISOString().slice(0, 10);
     return `<div class="kin-card">
       <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> МОЙ КИН СУДЬБЫ</h3>
       <p style="color:var(--ink-faint);margin-bottom:12px;font-size:13px;line-height:1.5">У каждого человека есть свой Кин Судьбы — энергия дня рождения в цикле Цолькин. Он определяет вашу печать, тон и крест судьбы. Укажите дату рождения.</p>
-      <div class="birth-input-group">
-        <input type="date" id="birth-date-input" value="1990-01-01" min="1900-01-01" max="${todayStr}">
-        <button id="birth-save-btn">OK</button>
-      </div>
-      <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;text-align:center">Или введите текстом: <input type="text" id="birth-text-input" placeholder="26.07.1990" style="background:rgba(255,255,255,0.06);border:1px solid var(--hairline-2);border-radius:8px;color:var(--ink);padding:4px 8px;font-family:var(--font-mono);font-size:12px;width:100px;text-align:center"></p>
+      ${birthInputForm()}
     </div>`;
   }
 
-  const [y, m, d] = birthDateStr.split('-').map(Number);
-  const birthD = new Date(y, m - 1, d);
+  const birthD = storedBirthDate();
   const bKin = dreamspellKin(birthD);
   const { tone: bTone, seal: bSeal } = kinToToneSeal(bKin);
   const bInfo = kinsData[String(bKin)];
@@ -1922,20 +1925,14 @@ function renderMayaPersonal() {
   if (!mayaData) return '<div class="kin-card"><p>Загрузка данных…</p></div>';
   const birthDateStr = localStorage.getItem('birthDate');
   if (!birthDateStr) {
-    const todayStr = new Date().toISOString().slice(0, 10);
     return mayaBrandHeader('мой нав\'аль')
       + `<div class="kin-card">
       <h3 class="card-title"><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span> МОЙ НАВ'АЛЬ</h3>
       <p style="color:var(--ink-faint);margin-bottom:12px;font-size:13px;line-height:1.5">В традиции К'иче' знак вашего дня рождения называется <b>нав'аль (nawal)</b> — личный дух-покровитель, определяющий характер и судьбу. Укажите дату рождения, чтобы вычислить его по живому счёту майя (корреляция GMT-584283).</p>
-      <div class="birth-input-group">
-        <input type="date" id="birth-date-input" value="1990-01-01" min="1900-01-01" max="${todayStr}">
-        <button id="birth-save-btn">OK</button>
-      </div>
-      <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;text-align:center">Или введите текстом: <input type="text" id="birth-text-input" placeholder="26.07.1990" style="background:rgba(255,255,255,0.06);border:1px solid var(--hairline-2);border-radius:8px;color:var(--ink);padding:4px 8px;font-family:var(--font-mono);font-size:12px;width:100px;text-align:center"></p>
+      ${birthInputForm()}
     </div>`;
   }
-  const [y, m, d] = birthDateStr.split('-').map(Number);
-  const birthD = new Date(y, m - 1, d);
+  const birthD = storedBirthDate();
   const md = classicMayaDate(birthD);
   const s = mayaData.tzolkin.day_signs[md.tzolkinSign - 1];
   const numData = mayaData.tzolkin.numbers.list[md.tzolkinNum - 1];
@@ -1987,7 +1984,7 @@ function renderMayaGrid() {
 
   let bSign = null;
   const birthDateStr = localStorage.getItem('birthDate');
-  if (birthDateStr) { const [by, bm, bd] = birthDateStr.split('-').map(Number); bSign = classicMayaDate(new Date(by, bm - 1, bd)); }
+  if (birthDateStr) bSign = classicMayaDate(storedBirthDate());
   const curKey = dateKey(currentDate);
 
   let h = mayaBrandHeader('круг Чоль-К\'их · навигатор')
@@ -2089,8 +2086,7 @@ function renderMayaMedicine() {
     <p style="line-height:1.6;margin-top:8px;color:var(--ink-dim)">${mi.usage}</p></div>`;
   const birthDateStr = localStorage.getItem('birthDate');
   if (birthDateStr) {
-    const [by, bm, bd] = birthDateStr.split('-').map(Number);
-    const bMd = classicMayaDate(new Date(by, bm - 1, bd));
+    const bMd = classicMayaDate(storedBirthDate());
     const bS = mayaData.tzolkin.day_signs[bMd.tzolkinSign - 1];
     const bMed = (mayaData.sign_profiles[String(bMd.tzolkinSign)] || {}).medicine || {};
     const bc = mayaSignColor(bS);
@@ -2420,6 +2416,14 @@ function bindCardEvents(kin, tone, seal) {
   card.querySelectorAll('[data-action="sp-info"]').forEach(el => {
     el.addEventListener('click', () => showInfoPopup('СПЕКТРАЛЬНЫЙ ПОЛЯРНЫЙ КИН', `<p class="pp-intro">${dsTexts?.tzolkin_legend?.spectral_polar?.popup || ''}</p>`));
   });
+  card.querySelectorAll('[data-action="mystic-info"]').forEach(el => {
+    el.addEventListener('click', () => showInfoPopup('МИСТИЧЕСКАЯ КОЛОННА', `
+      <p class="pp-intro" style="margin-bottom:12px">7-й столбец Цолькина — кины с Тоном 7, серединой каждой волны.</p>
+      <div style="font-size:12px;line-height:1.65;color:var(--ink-mid)">
+        <p style="margin-bottom:8px">20 кинов мистической колонны образуют ось зеркальной симметрии: вокруг неё весь 260-дневный узор отражается сам в себя.</p>
+        <p>Тон 7 (Резонансный) — точка равновесия и настройки волны. Эти дни связывают с интуицией, синхронностью и «настройкой канала».</p>
+      </div>`));
+  });
   card.querySelectorAll('[data-action="harm-info"]').forEach(el => {
     el.addEventListener('click', () => {
       const h = dsTexts?.harmonics;
@@ -2570,8 +2574,8 @@ function bindCardEvents(kin, tone, seal) {
     });
   });
 
-  // Tzolkin tab: cell clicks
-  card.querySelectorAll('.tzolkin-cell[data-tz-kin]').forEach(el => {
+  // Tzolkin tab: cell clicks (glyph grid cells carry data-tz-kin)
+  card.querySelectorAll('[data-tz-kin]').forEach(el => {
     el.addEventListener('click', () => {
       const targetKin = +el.dataset.tzKin;
       const d = dateForKin(targetKin);
@@ -2670,12 +2674,9 @@ function bindCardEvents(kin, tone, seal) {
   const gotoBtn = document.getElementById('personal-goto-kin');
   if (gotoBtn) {
     gotoBtn.addEventListener('click', () => {
-      const bDateStr = localStorage.getItem('birthDate');
-      if (bDateStr) {
-        const [y, m, d] = bDateStr.split('-').map(Number);
-        const bKin = dreamspellKin(new Date(y, m - 1, d));
-        const d2 = dateForKin(bKin);
-        navigateToDate(d2);
+      const bKin = birthKinOrNull();
+      if (bKin != null) {
+        navigateToDate(dateForKin(bKin));
         switchTab('main');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -2947,9 +2948,11 @@ function setupEvents() {
   });
   musicBtn.addEventListener('pointercancel', () => { clearTimeout(musicLongTimer); musicLongTimer = null; });
 
-  // Close popup on overlay click or ESC (but not within 1s of opening — prevents accidental dismiss)
+  // Close on the FIRST tap of the dark overlay. Uses click (fires on release,
+  // so no click-through to content behind) but with NO artificial delay — the
+  // old 1-second immunity was the "needs a second tap" annoyance, now removed.
   document.getElementById('kin-popup').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('kin-popup') && Date.now() - _popupOpenedAt > 1000) closeKinPopup();
+    if (e.target === document.getElementById('kin-popup')) closeKinPopup();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
