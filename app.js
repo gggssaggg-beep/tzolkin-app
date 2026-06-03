@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '69';
+const APP_VER = '70';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -95,17 +95,12 @@ function showKinPopup(kin, roleInfo) {
     html += `<div class="eyebrow" style="margin-top:6px;color:var(--n-cyan)">${roleInfo.name}</div>
       <div style="font-size:11px;color:var(--ink-faint);margin-top:2px;font-style:italic">${roleInfo.desc}</div>`;
   }
+  // Unified popup body — same .pp-props / .pp-main styling as the ВОЛНА popup
+  // (the project's etalon), so the main text is large and readable everywhere.
   html += `</div>
-    <div class="hr"></div>
-    <div style="font-size:12px;line-height:1.7;color:var(--ink)">
-      <p>${sealImg(seal, 16)} <b>${si.name_ru}</b> (${si.name_maya})</p>
-      <p>Сущность: ${si.essence_ru}</p>
-      <p>Сила: ${si.power_ru} · Действие: ${si.action_ru}</p>
-      <p style="margin-top:6px">${toneImg(tone, 14)} <b>Тон ${tone} — ${ti.name_ru}</b></p>
-      <p>Функция: ${ti.action_ru}</p>
-    </div>`;
+    <div class="pp-props">▸ ПЕЧАТЬ: ${si.name_ru} (${si.name_maya})<br>▸ СУЩНОСТЬ: ${si.essence_ru}<br>▸ СИЛА: ${si.power_ru} · ДЕЙСТВИЕ: ${si.action_ru}<br>▸ ТОН ${tone} — ${ti.name_ru}<br>▸ ФУНКЦИЯ ТОНА: ${ti.action_ru}</div>`;
   if (info?.summary)
-    html += `<div class="hr"></div><p style="font-size:12px;color:var(--ink-faint);line-height:1.5">${info.summary}</p>`;
+    html += `<p class="pp-main">${info.summary}</p>`;
   html += `<button class="popup-goto-btn" id="popup-goto">ПЕРЕЙТИ К ЭТОМУ ДНЮ →</button>`;
   html += `<button class="popup-close-btn">✕ ЗАКРЫТЬ</button>`;
 
@@ -1566,7 +1561,9 @@ function renderMayaClassic() {
     </div>
   </div>`;
 
-  if (!isPro()) return html;
+  // In base mode the day-augury / medicine blocks sit right under the main
+  // card (no legend exists in base) — keep them visible there too.
+  if (!isPro()) return html + mayaDayProperties(md.tzolkinSign);
 
   // ── Sign block ──
   html += `<div class="detail-section">
@@ -1589,6 +1586,9 @@ function renderMayaClassic() {
     <p style="line-height:1.7">${signData.legend_ru}</p>
     ${signData.legend_source ? `<p style="font-size:10px;color:var(--ink-faint);margin-top:10px;font-style:italic;line-height:1.5">📖 ${signData.legend_source}</p>` : ''}
   </div>`;
+
+  // ── Day augury + medicine — placed right after the legend (user request) ──
+  html += mayaDayProperties(md.tzolkinSign);
 
   // ── Shadow ──
   if (signData.shadow_ru) html += `<div class="detail-section">
@@ -1916,8 +1916,7 @@ function renderMayaToday() {
   const s = mayaData.tzolkin.day_signs[md.tzolkinSign - 1];
   return mayaBrandHeader()
     + `<div class="kin-card" style="padding:10px 12px"><p class="section-intro" style="border:none;padding:0;margin:0">Знак сегодняшнего дня на языке К'иче' — это <b>нав'аль</b> (nawal), дух-покровитель дня. Ниже — число, печать, Хааб и Длинный счёт.</p></div>`
-    + renderMayaClassic()
-    + mayaDayProperties(md.tzolkinSign)
+    + renderMayaClassic() // свойства/медицина дня теперь внутри, сразу после легенды
     + `<button class="maya-fullcard-btn" data-maya-sign="${md.tzolkinSign}">◉ ПОЛНАЯ КАРТОЧКА ЗНАКА — ${s.name_yucatec}</button>`;
 }
 
@@ -2850,7 +2849,11 @@ function setupEvents() {
   todayBtn.addEventListener('click', () => {
     currentDate = new Date();
     cyclesKin = null;
-    if (currentTab !== 'main') switchTab('main');
+    // "Today" must stay within the active mode: in authentic-Maya mode jump to
+    // maya-today, never to the Dreamspell 'main' tab (that was the bug — pressing
+    // СЕГ from a Maya tab threw the user into Dreamspell).
+    const homeTab = mayaMode ? 'maya-today' : 'main';
+    if (currentTab !== homeTab) switchTab(homeTab);
     else render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
