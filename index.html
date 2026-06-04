@@ -15,7 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>window._vibrate = navigator.vibrate ? navigator.vibrate.bind(navigator) : null;</script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="style.css?v=72">
+<link rel="stylesheet" href="style.css?v=73">
 </head>
 <body>
 <canvas id="particles"></canvas>
@@ -81,14 +81,26 @@ if (localStorage.getItem('appVer') !== APP_VER) {
 // installs → skipWaiting → activates → claims clients → 'controllerchange'
 // fires → we reload once. reg.update() on focus makes an already-open app
 // pick up new versions without the user doing anything.
-if ('serviceWorker' in navigator) {
+// On localhost we never want a service worker: it caches old builds and makes
+// dev show stale content (the classic "works on GitHub, broken on localhost").
+// Actively tear down any SW + caches left over from a previous dev session.
+const isLocal = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
+if (isLocal && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+  if (window.caches) caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(() => {});
+}
+if (!isLocal && 'serviceWorker' in navigator) {
   let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (refreshing) return;          // guard against reload loops
     refreshing = true;
     location.reload();
   });
-  navigator.serviceWorker.register('sw.js').then(reg => {
+  // The ?v= MUST be bumped every release (together with sw.js CACHE and the
+  // app.js/style.css ?v=). The registration URL itself changing is what forces
+  // browsers / Telegram WebView / the GitHub Pages CDN to re-fetch sw.js past
+  // their HTTP cache — without it, phones keep the old SW and never update.
+  navigator.serviceWorker.register('sw.js?v=73').then(reg => {
     reg.update();                     // check for a newer SW right away
     // Re-check whenever the app comes back to the foreground.
     document.addEventListener('visibilitychange', () => {
@@ -97,6 +109,6 @@ if ('serviceWorker' in navigator) {
   }).catch(() => {});
 }
 </script>
-<script type="module" src="app.js?v=72"></script>
+<script type="module" src="app.js?v=73"></script>
 </body>
 </html>
