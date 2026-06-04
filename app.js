@@ -155,7 +155,20 @@ function showInfoPopup(title, bodyHtml) {
 // Use _vibrate captured before telegram-web-app.js could override navigator.vibrate
 const _vib = window._vibrate ?? navigator.vibrate?.bind(navigator) ?? null;
 
-function haptic(strength = 'light') {
+// The buzz must be felt the instant the finger LANDS, not at click-time: on touch
+// screens `click` fires after release (+disambiguation delay), which is exactly the
+// "vibration is late" feeling. A single delegated pointerdown (installed in
+// setupEvents) fires the press buzz globally; any haptic() called later in the SAME
+// gesture is suppressed so a tap never double-buzzes (e.g. handler + showInfoPopup).
+let _hapticGesture = false;
+let _hapticGestureTimer = 0;
+function _markHapticGesture() {
+  _hapticGesture = true;
+  clearTimeout(_hapticGestureTimer);
+  _hapticGestureTimer = setTimeout(() => { _hapticGesture = false; }, 500);
+}
+
+function _emitHaptic(strength = 'light') {
   const ms = { light: 50, medium: 100, heavy: 150, selection: 30 }[strength] ?? 50;
   // Physical vibration
   try { _vib?.(ms); } catch (_) {}
@@ -171,6 +184,26 @@ function haptic(strength = 'light') {
   // box-shadow on #app plus a forced reflow (void offsetWidth) ran on EVERY tap
   // and was a major source of perceived input lag on budget Android devices.
 }
+
+// Called from click handlers throughout the app. If a tap already buzzed this
+// element on pointerdown, stay silent (instant feedback already given).
+function haptic(strength = 'light') {
+  if (_hapticGesture) return;
+  _emitHaptic(strength);
+}
+
+// Press feedback fired on pointerdown — buzz now and mark the gesture.
+function pressHaptic(strength = 'selection') {
+  _emitHaptic(strength);
+  _markHapticGesture();
+}
+
+// Anything the user can tap. Used by the global pointerdown haptic delegate.
+const HAPTIC_TAP_SEL = 'button, a, [data-action], [class*="-btn"], [data-tab],'
+  + ' [data-maya-sign], [data-maya-date], [data-maya-tale], [data-maya-open-tale],'
+  + ' [data-maya-grid], [data-cruz-pos], [data-cruz-goto], [data-tz-kin],'
+  + ' .info-item, .moon-clickable, .date-tap, .maya-grid-cell, .maya-cat-cell,'
+  + ' .cruz-cell, .maya-tale-item, .maya-myth-ref, .fav-star, [role="button"]';
 
 /* ── Vibration toast ── */
 let _toastTimer = null;
@@ -2946,6 +2979,16 @@ function closeSettingsModal() {
 function setupEvents() {
   // Run vibration self-test once on first user gesture
   document.addEventListener('pointerdown', runVibSelfTest, { once: true });
+
+  // ── Global press-haptic (whole app) ──────────────────────────────────
+  // One capture-phase listener buzzes the instant a finger lands on ANY tappable
+  // element — card content, popups, header, tabs — instead of waiting for click.
+  // This is the single source of tap feedback; per-handler haptic() calls within
+  // the same gesture are suppressed (see haptic()). Fixes the "vibration is late"
+  // feel everywhere, including dynamically re-rendered card buttons.
+  document.addEventListener('pointerdown', (e) => {
+    if (e.target.closest?.(HAPTIC_TAP_SEL)) pressHaptic('selection');
+  }, true);
 
   // Buttons fire their haptic on pointerdown (the instant of PRESS) so the buzz
   // is felt immediately, not on release. The actual action runs on click.
