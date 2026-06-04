@@ -1802,13 +1802,15 @@ function mayaBrandHeader(sub) {
   </div>`;
 }
 
-/* Full encyclopedic card for one of the 20 day-signs (independent of number). */
-function mayaSignCardHtml(pos) {
+/* Full encyclopedic card for one of the 20 day-signs (independent of number).
+   opts.skipHeader: omit the top identity card (used in МОЙ, where the personal
+   nawal summary card above already shows seal/names/meaning — avoids a duplicate). */
+function mayaSignCardHtml(pos, opts = {}) {
   const s = mayaData.tzolkin.day_signs[pos - 1];
   const prof = mayaData.sign_profiles[String(pos)] || {};
   const med = prof.medicine || {};
   const color = mayaSignColor(s);
-  let h = `<div class="kin-card">
+  let h = opts.skipHeader ? '' : `<div class="kin-card">
     <div style="display:flex;gap:14px;align-items:center">
       <div class="seal-badge ${color} c-${color}" style="width:72px;height:72px;flex:0 0 auto">${sealImg(pos, 60, true)}</div>
       <div>
@@ -2027,17 +2029,21 @@ function renderMayaPersonal() {
     <div style="text-align:center;margin-bottom:8px"><span class="maya-num-hero c-${color}">${mayaDots(md.tzolkinNum)}</span></div>
     <div style="text-align:center"><div class="seal-badge ${color} c-${color}" style="width:84px;height:84px;margin-bottom:8px">${sealImg(md.tzolkinSign, 72, true)}</div></div>
     <div class="kin-title" style="font-size:22px;text-align:center;text-transform:uppercase;letter-spacing:0.1em">${s.name_yucatec}</div>
-    <div class="kin-subtitle" style="text-align:center;margin-bottom:10px">${s.meaning_ru}</div>
+    <div class="kin-subtitle" style="text-align:center;margin-bottom:4px">${s.meaning_ru}</div>
+    <div class="eyebrow muted" style="text-align:center;margin-bottom:10px">ЗНАК ${md.tzolkinSign} ИЗ 20</div>
     <div style="font-family:var(--font-mono);font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim)">
       <p>▸ К'ИЧЕ': ${md.tzolkinNum} ${s.name_kiche} (${numData.name_kiche})</p>
       <p>▸ НАХУАТЛЬ: ${md.tzolkinNum} ${s.name_nahuatl}</p>
+      <p>▸ КЛАССИЧЕСКОЕ: ${s.name_classic_proto}</p>
+      <p>▸ НАПРАВЛЕНИЕ: ${s.direction} · СТИХИЯ: ${s.element}</p>
+      <p>▸ ПОКРОВИТЕЛЬ: ${s.patron_deity}</p>
       <p>▸ ХААБ РОЖДЕНИЯ: ${md.dayInMonth} ${monthData.name} (${monthData.name_ru})</p>
       <p>▸ ДЛИННЫЙ СЧЁТ: ${longCount}</p>
       <p>▸ КРУГ КАЛЕНДАРЯ: ${md.tzolkinNum} ${s.name_yucatec} ${md.dayInMonth} ${monthData.name}</p>
     </div>
-    <p class="section-intro" style="margin-top:10px;border:none;padding:0">Нав'аль — знак дня рождения по непрерывному счёту К'иче' (не по Дримспелл). Полная карточка ниже.</p>
+    <p class="section-intro" style="margin-top:10px;border:none;padding:0">Нав'аль — знак дня рождения по непрерывному счёту К'иче' (не по Дримспелл). Подробнее о знаке — ниже.</p>
   </div>`;
-  h += mayaSignCardHtml(md.tzolkinSign);
+  h += mayaSignCardHtml(md.tzolkinSign, { skipHeader: true });
   h += `<button class="birth-clear-btn" id="birth-clear-btn" style="width:100%;margin-top:4px;padding:12px;border:1px solid var(--hairline);border-radius:12px;background:rgba(255,255,255,0.03);color:var(--ink-faint);font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer">СБРОСИТЬ ДАТУ РОЖДЕНИЯ</button>`;
   return h;
 }
