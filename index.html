@@ -15,7 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>window._vibrate = navigator.vibrate ? navigator.vibrate.bind(navigator) : null;</script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="style.css?v=73">
+<link rel="stylesheet" href="style.css?v=74">
 </head>
 <body>
 <canvas id="particles"></canvas>
@@ -68,7 +68,7 @@
 </div>
 
 <script>
-const APP_VER = '72';
+const APP_VER = '74';
 // Reset transient per-version flags (harmless even when served from cache).
 if (localStorage.getItem('appVer') !== APP_VER) {
   localStorage.setItem('appVer', APP_VER);
@@ -100,7 +100,7 @@ if (!isLocal && 'serviceWorker' in navigator) {
   // app.js/style.css ?v=). The registration URL itself changing is what forces
   // browsers / Telegram WebView / the GitHub Pages CDN to re-fetch sw.js past
   // their HTTP cache — without it, phones keep the old SW and never update.
-  navigator.serviceWorker.register('sw.js?v=73').then(reg => {
+  navigator.serviceWorker.register('sw.js?v=74').then(reg => {
     reg.update();                     // check for a newer SW right away
     // Re-check whenever the app comes back to the foreground.
     document.addEventListener('visibilitychange', () => {
@@ -109,6 +109,6 @@ if (!isLocal && 'serviceWorker' in navigator) {
   }).catch(() => {});
 }
 </script>
-<script type="module" src="app.js?v=73"></script>
+<script type="module" src="app.js?v=74"></script>
 </body>
 </html>
