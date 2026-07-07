@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '77';
+const APP_VER = '78';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -1148,6 +1148,73 @@ function positionCycleMarkers() {
   });
 }
 
+// Попап «Порталы ГАП» — вынесен, чтобы переиспользовать при точечном
+// обновлении списка волны (без полного ре-рендера).
+function showGapInfoPopup() {
+  showInfoPopup('ПОРТАЛЫ ГАП', `
+      <p class="pp-intro" style="margin-bottom:12px">${dsTexts?.gap_portals?.description || ''}</p>
+      <div class="hr"></div>
+      <div style="font-size:12px;line-height:1.65;color:var(--ink-mid)">
+        <p style="margin-bottom:8px"><b>ГАП</b> расшифровывается как <b>Galactic Activation Portal</b> — Портал Галактической Активации.</p>
+        <p style="margin-bottom:8px">Таких порталов в Цолькине <b>52</b> из 260 кинов (~20%). Они расположены симметрично в сетке по паттерну двойной спирали, напоминающему ДНК.</p>
+        <p>В дни ГАП интенсивность восприятия выше: события ощущаются острее, совпадения — значимее. Это не «опасные» дни, а дни повышенного внимания и готовности к переменам.</p>
+      </div>
+      <div class="hr"></div>
+      <p style="font-size:11px;color:var(--ink-faint);font-style:italic">По системе Дримспелл (Хосе Аргуэльес). Классический майянский календарь этой концепции не содержит.</p>
+    `);
+}
+
+// Внутренняя разметка нижнего списка 13 кинов волны. Единственный источник —
+// используется и в renderCycles, и в refreshCyclesWaveList (точечное обновление).
+function cyclesWaveListInner(kin) {
+  const wave = wavespell(kin);
+  const waveFirst = (wave - 1) * 13 + 1;
+  const { seal: waveSeal } = kinToToneSeal(waveFirst);
+  const wsi = sealsData[waveSeal];
+  let html = `<h3 class="card-title"><span class="dot"></span> ВОЛНА ${wave} — ${sealImg(waveSeal, 22)} ${wsi.name_ru}</h3>
+    <div style="margin-top:8px">`;
+  for (let i = 0; i < 13; i++) {
+    const wk = waveFirst + i;
+    const { seal: ws } = kinToToneSeal(wk);
+    const isCurrent = wk === kin;
+    const wgap = isGap(wk);
+    const title = kinsData[String(wk)]?.title || '';
+    const harmIdx = (wk - 1) % 4;
+    let rowCls = 'wave-kin-row';
+    if (isCurrent) rowCls += ' current';
+    if (harmIdx === 0) rowCls += ' harm-first';
+    if (harmIdx === 3) rowCls += ' harm-last';
+    if (i === 0 && harmIdx > 0) rowCls += ' harm-open-top';
+    if (i === 12 && harmIdx < 3) rowCls += ' harm-open-bottom';
+    html += `<div class="${rowCls}" data-wave-kin="${wk}">
+      <span class="wave-kin-marker">${isCurrent ? '✦' : ''}</span>
+      <span class="wave-kin-img">${sealImg(ws, 28)}</span>
+      <span class="wave-kin-text">${title}${wgap ? '<span class="gap-badge gap-info-btn" data-action="gap-info" title="Портал Галактической Активации — нажмите для пояснения">ГАП</span>' : ''}</span>
+      <span class="wave-kin-num">${wk}</span>
+    </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+// Точечно перерисовать список кинов волны после промотки замка/волны — без
+// полного render(), чтобы карточка не «мигала» перезагрузкой.
+function refreshCyclesWaveList() {
+  const listCard = document.getElementById('cyc-wave-list');
+  if (!listCard) return;
+  listCard.innerHTML = cyclesWaveListInner(cyclesKin);
+  listCard.querySelectorAll('.wave-kin-row[data-wave-kin]').forEach(el => {
+    el.addEventListener('click', () => {
+      cyclesKin = +el.dataset.waveKin;
+      haptic('light');
+      updateCyclesActive();
+    });
+  });
+  listCard.querySelectorAll('[data-action="gap-info"]').forEach(el => {
+    el.addEventListener('click', () => showGapInfoPopup());
+  });
+}
+
 function renderCycles(kin) {
   const { tone, seal } = kinToToneSeal(kin);
   const info = kinsData[String(kin)];
@@ -1243,38 +1310,12 @@ function renderCycles(kin) {
     </div>
   </div>`;
 
-  // Wave kins with harmonic grouping
-  const { seal: waveSeal2 } = kinToToneSeal(waveFirst);
-  const wsi2 = sealsData[waveSeal2];
+  // Wave kins — вынесено в cyclesWaveListInner(), чтобы обновлять этот список
+  // точечно при промотке замка/волны, без полного render() и «мигания».
   const p = pulsar(tone);
   const pulsarData = dsTexts?.pulsars?.list?.find(pl => pl.tones.includes(tone));
 
-  html += `<div class="kin-card">
-    <h3 class="card-title"><span class="dot"></span> ВОЛНА ${wave} — ${sealImg(waveSeal2, 22)} ${wsi2.name_ru}</h3>
-    <div style="margin-top:8px">`;
-  for (let i = 0; i < 13; i++) {
-    const wk = waveFirst + i;
-    const { seal: ws } = kinToToneSeal(wk);
-    const isCurrent = wk === kin;
-    const wgap = isGap(wk);
-    const title = kinsData[String(wk)]?.title || '';
-    const harmIdx = (wk - 1) % 4;
-    const harmFirst = harmIdx === 0;
-    const harmLast = harmIdx === 3;
-    let rowCls = 'wave-kin-row';
-    if (isCurrent) rowCls += ' current';
-    if (harmFirst) rowCls += ' harm-first';
-    if (harmLast) rowCls += ' harm-last';
-    if (i === 0 && harmIdx > 0) rowCls += ' harm-open-top';
-    if (i === 12 && harmIdx < 3) rowCls += ' harm-open-bottom';
-    html += `<div class="${rowCls}" data-wave-kin="${wk}">
-      <span class="wave-kin-marker">${isCurrent ? '✦' : ''}</span>
-      <span class="wave-kin-img">${sealImg(ws, 28)}</span>
-      <span class="wave-kin-text">${title}${wgap ? '<span class="gap-badge gap-info-btn" data-action="gap-info" title="Портал Галактической Активации — нажмите для пояснения">ГАП</span>' : ''}</span>
-      <span class="wave-kin-num">${wk}</span>
-    </div>`;
-  }
-  html += `</div></div>`;
+  html += `<div class="kin-card" id="cyc-wave-list">${cyclesWaveListInner(kin)}</div>`;
 
   // Pulsar info
   html += `<div class="kin-card" style="padding:14px 10px">
@@ -2539,17 +2580,7 @@ function bindCardEvents(kin, tone, seal) {
 
   // Status badge popups
   card.querySelectorAll('[data-action="gap-info"]').forEach(el => {
-    el.addEventListener('click', () => showInfoPopup('ПОРТАЛЫ ГАП', `
-      <p class="pp-intro" style="margin-bottom:12px">${dsTexts?.gap_portals?.description || ''}</p>
-      <div class="hr"></div>
-      <div style="font-size:12px;line-height:1.65;color:var(--ink-mid)">
-        <p style="margin-bottom:8px"><b>ГАП</b> расшифровывается как <b>Galactic Activation Portal</b> — Портал Галактической Активации.</p>
-        <p style="margin-bottom:8px">Таких порталов в Цолькине <b>52</b> из 260 кинов (~20%). Они расположены симметрично в сетке по паттерну двойной спирали, напоминающему ДНК.</p>
-        <p>В дни ГАП интенсивность восприятия выше: события ощущаются острее, совпадения — значимее. Это не «опасные» дни, а дни повышенного внимания и готовности к переменам.</p>
-      </div>
-      <div class="hr"></div>
-      <p style="font-size:11px;color:var(--ink-faint);font-style:italic">По системе Дримспелл (Хосе Аргуэльес). Классический майянский календарь этой концепции не содержит.</p>
-    `));
+    el.addEventListener('click', () => showGapInfoPopup());
   });
   card.querySelectorAll('[data-action="gate-info"]').forEach(el => {
     el.addEventListener('click', () => showInfoPopup('МАГНИТНЫЕ ВРАТА', `<p class="pp-intro">${dsTexts?.tzolkin_legend?.magnetic_gates?.popup || ''}</p>`));
@@ -2772,10 +2803,10 @@ function bindCardEvents(kin, tone, seal) {
           cyclesKin = snapped;
         }
         updateCyclesActive();
-        // Re-render wave kin list when wave/castle changes
+        // Список кинов волны меняется при смене волны/замка — обновляем ТОЛЬКО
+        // его, точечно, без полного render() (иначе карточка «мигает»).
         if (unit === 13 || unit === 52) {
-          render();
-          requestAnimationFrame(positionCycleMarkers);
+          refreshCyclesWaveList();
         }
       } else {
         dragUnit = 0;
@@ -3242,6 +3273,8 @@ function initParticles() {
 const TOUR_STEPS = [
   { sel: null, place: 'center', color: 'violet', title: 'ОБУЧЕНИЕ ✦',
     text: 'Коротко покажем каждый раздел сайта — это займёт полминуты. Жмите «Далее».' },
+  { sel: null, place: 'center', color: 'amber', title: 'ЧТО ТАКОЕ МАЙЯ И ЦОЛЬКИН?',
+    text: 'Майя — древний народ Центральной Америки. Они считали дни не так, как мы: у них был круг из 260 дней, он называется ЦОЛЬКИН. Каждый день в этом круге — это «КИН»: у него есть число, цвет и символ-«печать». Проще говоря — как гороскоп, но свой на каждый день. Это приложение показывает кин любого дня и что он означает.' },
   { sel: '#date-display', place: 'bottom', color: 'cyan', title: 'ТЕКУЩАЯ ДАТА',
     text: 'Показывает выбранный день. Нажмите на дату, чтобы перейти к любому числу или к кину 1–260.' },
   { sel: '#prev', place: 'bottom', color: 'cyan', title: 'ЛИСТАЙТЕ ДНИ',
@@ -3288,17 +3321,22 @@ function ensureTourEls() {
     '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
   document.getElementById('tour-skip').addEventListener('click', () => { haptic('selection'); endTour(); });
-  document.getElementById('tour-prev').addEventListener('click', () => { haptic('selection'); tourGo(tourIdx - 1); });
-  document.getElementById('tour-next').addEventListener('click', () => { haptic('selection'); tourGo(tourIdx + 1); });
+  document.getElementById('tour-prev').addEventListener('click', () => { if (tourIdx < 0) return; haptic('selection'); tourGo(tourIdx - 1); });
+  document.getElementById('tour-next').addEventListener('click', () => { if (tourIdx < 0) return; haptic('selection'); tourGo(tourIdx + 1); });
   window.addEventListener('resize', () => { if (tourIdx >= 0) positionTour(); });
 }
 
 function startTour(start = 0) {
   closeKinPopup();
   closeSettingsModal();
+  const hint = document.getElementById('tour-hint');
+  if (hint) hint.remove();               // убираем плашку-предложение, если висит
+  localStorage.setItem('tourSeen', '1'); // прошёл обучение — больше не навязываем при открытии
   ensureTourEls();
-  tourReturnTab = currentTab;   // куда вернуться по завершении
+  tourReturnTab = currentTab;            // куда вернуться по завершении
   document.body.classList.add('tour-open');
+  document.getElementById('tour-blocker').style.display = 'block';
+  document.getElementById('tour-tip').style.display = 'block';
   tourGo(start);
 }
 
@@ -3392,12 +3430,16 @@ function positionTour() {
 }
 
 function endTour() {
+  if (tourIdx < 0) return;               // уже закрыт — защита от повторного клика (не даёт перезапуститься)
   tourIdx = -1;
   document.body.classList.remove('tour-open');
+  // Полностью убираем ВСЕ слои тура, иначе ✕/«Готово» визуально не закрывают окно.
+  const blocker = document.getElementById('tour-blocker');
+  if (blocker) { blocker.classList.remove('dim'); blocker.style.display = 'none'; }
   const spot = document.getElementById('tour-spot');
   if (spot) spot.style.display = 'none';
-  const blocker = document.getElementById('tour-blocker');
-  if (blocker) blocker.classList.remove('dim');
+  const tip = document.getElementById('tour-tip');
+  if (tip) tip.style.display = 'none';
   if (tourReturnTab && tourReturnTab !== currentTab && document.querySelector(`.tab[data-tab="${tourReturnTab}"]`)) {
     tourSwitchTab(tourReturnTab);
   }
@@ -3439,9 +3481,11 @@ function showWelcome() {
    Тонкая плашка над вкладками: предлагает пройти обучение. Легко закрыть,
    сама исчезает через 12 секунд. Показывается при каждом открытии сайта. */
 function showTourHint() {
+  if (localStorage.getItem('tourSeen') === '1') return; // уже проходил — не навязываем
   if (document.getElementById('tour-hint')) return;
   setTimeout(() => {
-    if (document.getElementById('tour-hint') || tourIdx >= 0) return;
+    // не показываем поверх активного тура или уже открытой плашки
+    if (document.getElementById('tour-hint') || tourIdx >= 0 || document.body.classList.contains('tour-open')) return;
     const bar = document.createElement('div');
     bar.id = 'tour-hint';
     bar.className = 'tour-hint';
