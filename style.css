@@ -1319,6 +1319,120 @@ body.modal-open { overflow: hidden; }
 .popup-goto-btn + .popup-close-btn { margin-top: 8px; }
 
 /* ─────────────────────────────────────────────────────────────
+   Обучение: приветствие, пошаговый тур, подсказка при открытии
+   ───────────────────────────────────────────────────────────── */
+
+/* Приветствие — пункты (как первый экран телефонного приложения) */
+.welcome-points { margin: 4px 0 16px; }
+.welcome-point { display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start; }
+.welcome-point:last-child { margin-bottom: 0; }
+.welcome-emoji { font-size: 22px; line-height: 1.2; flex-shrink: 0; }
+.welcome-point b {
+  display: block; font-family: var(--font-mono); font-size: 13px;
+  letter-spacing: 0.04em; color: var(--ink); margin-bottom: 3px;
+}
+.welcome-point p { font-size: 12px; line-height: 1.5; color: var(--ink-dim); margin: 0; }
+.welcome-go {
+  display: block; width: 100%; margin: 4px 0 8px; padding: 13px;
+  border: 1px solid color-mix(in oklab, var(--n-violet) 55%, transparent);
+  border-radius: 12px; background: rgba(192,125,255,0.14);
+  color: var(--n-violet); cursor: pointer;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.welcome-go:active { transform: scale(.98); background: rgba(192,125,255,0.22); }
+
+/* Тур: затемнение, рамка-подсветка, карточка-подсказка */
+body.tour-open { overflow: hidden; }
+.tour-blocker { position: fixed; inset: 0; z-index: 9000; background: transparent; }
+/* Шаг без цели: затемняем весь экран */
+.tour-blocker.dim { background: rgba(5,0,16,0.82); backdrop-filter: blur(3px); }
+.tour-spot {
+  position: fixed; z-index: 9001; display: none; border-radius: 12px;
+  pointer-events: none;
+  /* «дырка» в затемнении: огромная тень вокруг прозрачного прямоугольника */
+  box-shadow: 0 0 0 9999px rgba(5,0,16,0.82),
+              0 0 0 2px var(--tour-accent, var(--n-cyan)),
+              0 0 22px color-mix(in oklab, var(--tour-accent, var(--n-cyan)) 60%, transparent);
+  transition: left .3s cubic-bezier(.4,0,.2,1), top .3s cubic-bezier(.4,0,.2,1),
+              width .3s cubic-bezier(.4,0,.2,1), height .3s cubic-bezier(.4,0,.2,1);
+}
+.tour-tip {
+  position: fixed; z-index: 9002; width: min(320px, calc(100vw - 32px));
+  background: var(--bg-1); border: 1px solid var(--hairline);
+  border-radius: 16px; padding: 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5); backdrop-filter: blur(12px);
+  animation: fadeIn .2s ease;
+}
+.tour-tip[data-color="cyan"]   { --tour-accent: var(--n-cyan); }
+.tour-tip[data-color="violet"] { --tour-accent: var(--n-violet); }
+.tour-tip[data-color="amber"]  { --tour-accent: var(--n-amber); }
+.tour-tip[data-color="red"]    { --tour-accent: var(--n-red); }
+.tour-tip { border-color: color-mix(in oklab, var(--tour-accent, var(--n-cyan)) 35%, var(--hairline)); }
+.tour-x {
+  position: absolute; top: 10px; right: 10px;
+  width: 26px; height: 26px; border-radius: 8px;
+  border: 1px solid var(--hairline); background: rgba(255,255,255,0.03);
+  color: var(--ink-faint); font-size: 12px; line-height: 1; cursor: pointer;
+}
+.tour-x:active { background: rgba(255,255,255,0.08); }
+.tour-tip-no {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.2em;
+  color: var(--tour-accent, var(--n-cyan)); margin-bottom: 8px; padding-right: 30px;
+}
+.tour-tip-title {
+  font-family: var(--font-mono); font-size: 14px; font-weight: 700;
+  letter-spacing: 0.08em; color: var(--ink); margin: 0 0 8px;
+}
+.tour-tip-text { font-size: 13px; line-height: 1.55; color: var(--ink-dim); margin: 0 0 14px; }
+.tour-tip-row { display: flex; align-items: center; gap: 8px; }
+.tour-spacer { flex: 1; }
+.tour-btn {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+  border-radius: 9px; padding: 8px 13px;
+}
+.tour-btn-ghost { background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); color: var(--ink-faint); }
+.tour-btn-ghost:active { background: rgba(255,255,255,0.08); }
+.tour-btn-go {
+  background: color-mix(in oklab, var(--tour-accent, var(--n-cyan)) 16%, transparent);
+  border: 1px solid color-mix(in oklab, var(--tour-accent, var(--n-cyan)) 50%, transparent);
+  color: var(--tour-accent, var(--n-cyan));
+}
+.tour-btn-go:active { transform: scale(.97); }
+
+/* Подсказка при каждом открытии — тонкая плашка над вкладками */
+.tour-hint {
+  position: fixed; left: 12px; right: 12px;
+  /* выше плавающих кнопок музыки/настроек (они на bottom:72px, высотой 40px) */
+  bottom: calc(122px + env(safe-area-inset-bottom, 0px));
+  z-index: 40; display: flex; align-items: center; gap: 10px;
+  background: var(--bg-2);
+  border: 1px solid color-mix(in oklab, var(--n-cyan) 35%, var(--hairline));
+  border-radius: 14px; padding: 10px 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4); backdrop-filter: blur(12px);
+  transform: translateY(150%); opacity: 0;
+  transition: transform .32s cubic-bezier(.4,0,.2,1), opacity .32s;
+}
+.tour-hint.show { transform: translateY(0); opacity: 1; }
+.tour-hint-ic { font-size: 20px; flex-shrink: 0; }
+.tour-hint-tx { flex: 1; font-size: 12px; line-height: 1.35; color: var(--ink-dim); }
+.tour-hint-go {
+  flex-shrink: 0; padding: 8px 12px; border-radius: 9px;
+  border: 1px solid color-mix(in oklab, var(--n-cyan) 50%, transparent);
+  background: rgba(125,223,239,0.14); color: var(--n-cyan);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; cursor: pointer;
+}
+.tour-hint-go:active { transform: scale(.97); }
+.tour-hint-x {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+  border: 1px solid var(--hairline); background: transparent;
+  color: var(--ink-faint); font-size: 13px; cursor: pointer; line-height: 1;
+}
+.tour-hint-x:active { background: rgba(255,255,255,0.06); }
+
+/* ─────────────────────────────────────────────────────────────
    Animations
    ───────────────────────────────────────────────────────────── */
 @keyframes fadeIn {

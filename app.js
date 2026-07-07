@@ -4,7 +4,7 @@ import {
   getMoon, yearBearer, pulsar,
 } from './tzolkin.js';
 
-const APP_VER = '72';
+const APP_VER = '77';
 let sealsData, tonesData, kinsData, mayaData, dsTexts;
 let currentDate = new Date();
 let currentTab = 'main';
@@ -2900,6 +2900,12 @@ function renderSettings() {
     </div>
 
     <div class="detail-section">
+      <h3><span class="dot" style="background:var(--n-cyan);box-shadow:0 0 8px var(--n-cyan)"></span>ОБУЧЕНИЕ</h3>
+      <p style="margin-top:8px;font-size:11px;color:var(--ink-faint)">Короткий тур по всем разделам сайта: даты, вкладки, режимы. Можно пройти в любой момент.</p>
+      <button id="stg-tour" class="nav-go-btn" style="margin-top:10px">🎓 ПРОЙТИ ОБУЧЕНИЕ ЗАНОВО</button>
+    </div>
+
+    <div class="detail-section">
       <h3><span class="dot" style="background:var(--n-violet);box-shadow:0 0 8px var(--n-violet)"></span>ОБРАТНАЯ СВЯЗЬ</h3>
       <p style="margin-top:10px">
         <a href="https://t.me/U314159" style="color:var(--n-cyan);font-family:var(--font-mono);font-size:13px;text-decoration:none">💬 @U314159</a>
@@ -2925,6 +2931,8 @@ function renderSettings() {
     <button class="modal-close" id="settings-close">✕ ЗАКРЫТЬ</button>`;
 
   document.getElementById('settings-close').addEventListener('click', closeSettingsModal);
+  const tourBtn = document.getElementById('stg-tour');
+  if (tourBtn) tourBtn.addEventListener('click', () => { haptic('selection'); closeSettingsModal(); startTour(); });
   const clearBirthBtn = document.getElementById('stg-clear-birth');
   if (clearBirthBtn) {
     clearBirthBtn.addEventListener('click', () => {
@@ -3113,7 +3121,8 @@ function setupEvents() {
   });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (document.getElementById('kin-popup').style.display !== 'none') closeKinPopup();
+    if (tourIdx >= 0) endTour();
+    else if (document.getElementById('kin-popup').style.display !== 'none') closeKinPopup();
     else if (document.getElementById('settings-modal').style.display !== 'none') closeSettingsModal();
   });
 
@@ -3214,21 +3223,240 @@ function initParticles() {
   requestAnimationFrame(frame);
 }
 
-/* ── Welcome popup (once) ── */
+/* ── Обучение: приветствие + пошаговый тур ────────────────────────────
+   Идея взята из приложения MENS: не длинный текст, а живые подсказки по
+   месту. Здесь три части:
+     1) Приветствие (showWelcome) — один раз при первом открытии, как первый
+        экран в телефонном приложении. Внутри — кнопка «Пройти обучение».
+     2) Обучалка (startTour) — по очереди подсвечивает каждый пункт сайта и
+        коротко объясняет его. Запускается из приветствия, из подсказки при
+        каждом открытии и из настроек («пройти заново»).
+     3) Подсказка (showTourHint) — тонкая плашка при каждом открытии с
+        предложением пройти обучение.
+   ------------------------------------------------------------------- */
+
+// Шаги тура. sel — что подсветить (CSS-селектор; несколько элементов →
+// подсветится их общий прямоугольник; null → шаг без подсветки, по центру).
+// tab — на какую вкладку переключиться перед шагом (показываем раздел живьём).
+// place — где рисовать подсказку относительно объекта: 'top' | 'bottom' | 'center'.
+const TOUR_STEPS = [
+  { sel: null, place: 'center', color: 'violet', title: 'ОБУЧЕНИЕ ✦',
+    text: 'Коротко покажем каждый раздел сайта — это займёт полминуты. Жмите «Далее».' },
+  { sel: '#date-display', place: 'bottom', color: 'cyan', title: 'ТЕКУЩАЯ ДАТА',
+    text: 'Показывает выбранный день. Нажмите на дату, чтобы перейти к любому числу или к кину 1–260.' },
+  { sel: '#prev', place: 'bottom', color: 'cyan', title: 'ЛИСТАЙТЕ ДНИ',
+    text: 'Стрелки ‹ и › по краям — предыдущий и следующий день. На телефоне карточку можно смахивать влево-вправо.' },
+  { sel: '#today-btn', place: 'bottom', color: 'amber', title: 'СЕГОДНЯ',
+    text: 'Кнопка «СЕГ» мгновенно возвращает к текущему дню, где бы вы ни были.' },
+  { sel: '#my-kin-btn', place: 'bottom', color: 'violet', title: 'МОЙ КИН',
+    text: 'Быстрый переход к вашему личному кину. Дата рождения задаётся в настройках ⚙.' },
+  { sel: '[data-tab="main"]', tab: 'main', place: 'top', color: 'cyan', title: 'ВКЛАДКА «КИН»',
+    text: 'Главный экран дня: печать и тон, оракул (родственные энергии), фаза Луны и ваш дневник.' },
+  { sel: '[data-tab="cycles"]', tab: 'cycles', place: 'top', color: 'red', title: 'ВКЛАДКА «ЦИКЛЫ»',
+    text: 'Ритмы дня: волна, пять пульсаров и плазмы недели — наглядно, из чего складывается энергия.' },
+  { sel: '[data-tab="tzolkin"]', tab: 'tzolkin', place: 'top', color: 'amber', title: 'ВКЛАДКА «ЦОЛЬКИН»',
+    text: 'Вся матрица из 260 кинов. Кин дня и ваш личный кин подсвечены — видно, где вы в цикле.' },
+  { sel: '[data-tab="personal"]', tab: 'personal', place: 'top', color: 'violet', title: 'ВКЛАДКА «МОЙ»',
+    text: 'Ваш кин судьбы и оракул по дате рождения — личный портрет по галактическому счёту.' },
+  { sel: '#music-btn', place: 'top', color: 'violet', title: 'МУЗЫКА',
+    text: 'Фоновая музыка для настроения. Нажмите, чтобы включить или выключить.' },
+  { sel: '#settings-btn', place: 'top', color: 'cyan', title: 'НАСТРОЙКИ',
+    text: 'Режимы БАЗА / ПРОФИ, подлинный календарь майя, дата рождения. Здесь же можно пройти это обучение заново.' },
+  { sel: null, place: 'center', color: 'violet', title: 'ГОТОВО ✦',
+    text: 'Вот и всё! Обучение всегда под рукой — в настройках ⚙ или в подсказке при следующем открытии.' },
+];
+
+let tourIdx = -1;
+let tourReturnTab = null;
+
+// Лениво создаём слои тура (затемнение, рамка-подсветка, карточка-подсказка).
+function ensureTourEls() {
+  if (document.getElementById('tour-blocker')) return;
+  const html =
+    '<div id="tour-blocker" class="tour-blocker"></div>' +
+    '<div id="tour-spot" class="tour-spot"></div>' +
+    '<div id="tour-tip" class="tour-tip">' +
+      '<button id="tour-skip" class="tour-x" aria-label="Закрыть обучение">✕</button>' +
+      '<div class="tour-tip-no" id="tour-step-no"></div>' +
+      '<h3 class="tour-tip-title" id="tour-title"></h3>' +
+      '<p class="tour-tip-text" id="tour-text"></p>' +
+      '<div class="tour-tip-row">' +
+        '<button id="tour-prev" class="tour-btn tour-btn-ghost">НАЗАД</button>' +
+        '<span class="tour-spacer"></span>' +
+        '<button id="tour-next" class="tour-btn tour-btn-go">ДАЛЕЕ</button>' +
+      '</div>' +
+    '</div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('tour-skip').addEventListener('click', () => { haptic('selection'); endTour(); });
+  document.getElementById('tour-prev').addEventListener('click', () => { haptic('selection'); tourGo(tourIdx - 1); });
+  document.getElementById('tour-next').addEventListener('click', () => { haptic('selection'); tourGo(tourIdx + 1); });
+  window.addEventListener('resize', () => { if (tourIdx >= 0) positionTour(); });
+}
+
+function startTour(start = 0) {
+  closeKinPopup();
+  closeSettingsModal();
+  ensureTourEls();
+  tourReturnTab = currentTab;   // куда вернуться по завершении
+  document.body.classList.add('tour-open');
+  tourGo(start);
+}
+
+function tourGo(i) {
+  if (i < 0) i = 0;
+  if (i >= TOUR_STEPS.length) { endTour(); return; }
+  tourIdx = i;
+  const step = TOUR_STEPS[i];
+  // Переключаем вкладку, если шаг это требует и она есть в текущем режиме.
+  if (step.tab && document.querySelector(`.tab[data-tab="${step.tab}"]`)) tourSwitchTab(step.tab);
+
+  document.getElementById('tour-step-no').textContent = `ШАГ ${i + 1} / ${TOUR_STEPS.length}`;
+  document.getElementById('tour-title').textContent = step.title;
+  document.getElementById('tour-text').textContent = step.text;
+  const tip = document.getElementById('tour-tip');
+  tip.dataset.color = step.color || 'cyan';
+  document.getElementById('tour-prev').style.visibility = i === 0 ? 'hidden' : 'visible';
+  document.getElementById('tour-next').textContent = i === TOUR_STEPS.length - 1 ? 'ГОТОВО' : 'ДАЛЕЕ';
+
+  // Ждём перерисовку вкладки, затем позиционируем подсветку и подсказку.
+  requestAnimationFrame(() => requestAnimationFrame(positionTour));
+}
+
+// Лёгкое переключение вкладки для тура — без записи в историю «← НАЗАД».
+function tourSwitchTab(tab) {
+  if (tab === currentTab) return;
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  render();
+}
+
+// Общий прямоугольник для набора элементов (для селекторов вроде '#prev, #next').
+function unionRect(nodes) {
+  let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+  nodes.forEach(n => {
+    const q = n.getBoundingClientRect();
+    if (!q.width && !q.height) return;
+    l = Math.min(l, q.left); t = Math.min(t, q.top);
+    r = Math.max(r, q.right); b = Math.max(b, q.bottom);
+  });
+  if (l === Infinity) return null;
+  return { left: l, top: t, width: r - l, height: b - t, bottom: b };
+}
+
+function positionTour() {
+  if (tourIdx < 0) return;
+  const step = TOUR_STEPS[tourIdx];
+  const spot = document.getElementById('tour-spot');
+  const tip = document.getElementById('tour-tip');
+  const blocker = document.getElementById('tour-blocker');
+  const vw = window.innerWidth, vh = window.innerHeight;
+
+  let rect = null;
+  if (step.sel) {
+    const nodes = [...document.querySelectorAll(step.sel)].filter(n => n.getClientRects().length);
+    if (nodes.length) rect = unionRect(nodes);
+  }
+
+  // Шаг без цели — затемняем весь экран, подсказка по центру.
+  // Центрируем в пикселях (не через transform: его перебивает CSS-анимация появления).
+  if (!rect) {
+    spot.style.display = 'none';
+    blocker.classList.add('dim');
+    tip.style.transform = 'none';
+    tip.style.left = Math.max(16, (vw - tip.offsetWidth) / 2) + 'px';
+    tip.style.top = Math.max(16, (vh - tip.offsetHeight) / 2) + 'px';
+    return;
+  }
+
+  blocker.classList.remove('dim');
+  const pad = 8;
+  spot.style.display = 'block';
+  spot.style.left = (rect.left - pad) + 'px';
+  spot.style.top = (rect.top - pad) + 'px';
+  spot.style.width = (rect.width + pad * 2) + 'px';
+  spot.style.height = (rect.height + pad * 2) + 'px';
+
+  tip.style.transform = 'none';
+  const tw = tip.offsetWidth;
+  let left = rect.left + rect.width / 2 - tw / 2;
+  left = Math.max(16, Math.min(left, vw - tw - 16));
+  tip.style.left = left + 'px';
+
+  const th = tip.offsetHeight;
+  let place = step.place || 'bottom';
+  if (place === 'bottom' && rect.bottom + 14 + th > vh - 8) place = 'top';
+  if (place === 'top' && rect.top - 14 - th < 8) place = 'bottom';
+  let top = place === 'top' ? rect.top - 14 - th : rect.bottom + 14;
+  top = Math.max(8, Math.min(top, vh - th - 8));
+  tip.style.top = top + 'px';
+}
+
+function endTour() {
+  tourIdx = -1;
+  document.body.classList.remove('tour-open');
+  const spot = document.getElementById('tour-spot');
+  if (spot) spot.style.display = 'none';
+  const blocker = document.getElementById('tour-blocker');
+  if (blocker) blocker.classList.remove('dim');
+  if (tourReturnTab && tourReturnTab !== currentTab && document.querySelector(`.tab[data-tab="${tourReturnTab}"]`)) {
+    tourSwitchTab(tourReturnTab);
+  }
+  tourReturnTab = null;
+}
+
+/* ── Приветствие при первом открытии ──────────────────────────────────
+   Как первый экран в телефонном приложении. Возвращает true, если было
+   показано (тогда подсказку при открытии не дублируем). Внутри — кнопка
+   «Пройти обучение», как просили: предложение пройти обучение именно здесь. */
 function showWelcome() {
-  const key = 'welcomeVer';
-  if (localStorage.getItem(key) === APP_VER) return;
-  localStorage.setItem(key, APP_VER);
+  if (localStorage.getItem('tzolkinWelcomeSeen') === '1') return false;
+  localStorage.setItem('tzolkinWelcomeSeen', '1');
   setTimeout(() => {
-    showInfoPopup('ЦОЛЬКИН', `
-      <div style="text-align:center;margin-bottom:14px">
-        <div style="font-size:36px;margin-bottom:8px">✦</div>
-        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.2em;color:var(--ink-faint)">КИН ДНЯ · DREAMSPELL</div>
+    const popup = document.getElementById('kin-popup-content');
+    popup.innerHTML = `
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:38px;margin-bottom:6px">✦</div>
+        <h3 style="font-family:var(--font-mono);font-size:16px;letter-spacing:0.18em;color:var(--ink);margin:0">ЦОЛЬКИН</h3>
+        <div style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.2em;color:var(--ink-faint);margin-top:6px">КИН ДНЯ · DREAMSPELL</div>
       </div>
-      <p style="font-size:14px;line-height:1.6;color:var(--ink);margin-bottom:14px">Каждый день несёт уникальную энергию в 260-дневном цикле Цолькин. Листайте дни, изучайте печати и тоны.</p>
-      <p style="font-size:13px;line-height:1.5;color:var(--ink-dim);margin-bottom:14px">Сейчас включён режим <b style="color:var(--n-cyan)">БАЗА</b> — компактный вид для ежедневного использования.</p>
-      <p style="font-size:13px;line-height:1.5;color:var(--ink-dim)">Для полной информации (печать, тон, земная семья, архетип) переключите на <b style="color:var(--n-violet)">ПРОФИ</b> в настройках <span style="font-size:16px">⚙</span></p>`);
-  }, 600);
+      <div class="welcome-points">
+        <div class="welcome-point"><span class="welcome-emoji">🌀</span><div><b>Кин каждого дня</b><p>260-дневный цикл Цолькин: у каждого дня своя печать и тон — своя энергия.</p></div></div>
+        <div class="welcome-point"><span class="welcome-emoji">🧭</span><div><b>Четыре раздела</b><p>Кин дня, циклы и ритмы, вся матрица 260 кинов и ваш личный кин судьбы.</p></div></div>
+        <div class="welcome-point"><span class="welcome-emoji">⚙️</span><div><b>Два режима</b><p>БАЗА — коротко на каждый день, ПРОФИ — вся глубина. Есть и подлинный календарь майя.</p></div></div>
+        <div class="welcome-point"><span class="welcome-emoji">🔒</span><div><b>Всё остаётся у вас</b><p>Заметки и дата рождения хранятся только в этом браузере, никуда не отправляются.</p></div></div>
+      </div>
+      <button class="welcome-go" id="welcome-tour">🎓 ПРОЙТИ ОБУЧЕНИЕ</button>
+      <button class="popup-close-btn" id="welcome-close">НАЧАТЬ БЕЗ ОБУЧЕНИЯ</button>`;
+    document.getElementById('kin-popup').style.display = 'flex';
+    syncScrollLock();
+    document.getElementById('welcome-tour').addEventListener('click', () => { haptic('selection'); closeKinPopup(); startTour(); });
+    document.getElementById('welcome-close').addEventListener('click', closeKinPopup);
+  }, 450);
+  return true;
+}
+
+/* ── Подсказка при каждом открытии ────────────────────────────────────
+   Тонкая плашка над вкладками: предлагает пройти обучение. Легко закрыть,
+   сама исчезает через 12 секунд. Показывается при каждом открытии сайта. */
+function showTourHint() {
+  if (document.getElementById('tour-hint')) return;
+  setTimeout(() => {
+    if (document.getElementById('tour-hint') || tourIdx >= 0) return;
+    const bar = document.createElement('div');
+    bar.id = 'tour-hint';
+    bar.className = 'tour-hint';
+    bar.innerHTML =
+      '<span class="tour-hint-ic">🎓</span>' +
+      '<span class="tour-hint-tx">Не знаете, с чего начать? Пройдите короткое обучение по сайту.</span>' +
+      '<button class="tour-hint-go" id="tour-hint-go">НАЧАТЬ</button>' +
+      '<button class="tour-hint-x" id="tour-hint-x" aria-label="Закрыть">✕</button>';
+    document.body.appendChild(bar);
+    requestAnimationFrame(() => bar.classList.add('show'));
+    const close = () => { bar.classList.remove('show'); setTimeout(() => bar.remove(), 320); };
+    document.getElementById('tour-hint-go').addEventListener('click', () => { haptic('selection'); close(); startTour(); });
+    document.getElementById('tour-hint-x').addEventListener('click', () => { haptic('selection'); close(); });
+    setTimeout(() => { if (document.body.contains(bar)) close(); }, 12000);
+  }, 900);
 }
 
 /* ── Init ── */
@@ -3241,7 +3469,12 @@ async function init() {
     if (mayaMode) currentTab = 'maya-today';
     renderTabs();
     render();
-    showWelcome();
+    // Ссылка вида .../#tour запускает обучение сразу (для кнопок «пройти
+    // обучение» из бота/меню); .../#tour5 — с конкретного шага. Иначе: первое
+    // открытие → приветствие с предложением обучения; далее — подсказка.
+    const tourHash = location.hash.match(/^#tour(\d+)?$/);
+    if (tourHash) { history.replaceState(null, '', location.pathname + location.search); startTour(tourHash[1] ? +tourHash[1] : 0); }
+    else if (!showWelcome()) showTourHint();
   } catch (e) {
     const card = document.getElementById('card');
     if (card) card.innerHTML = `<div class="kin-card" style="padding:20px"><h3 style="color:#e8e2ff">Ошибка</h3><p style="color:#aaa;margin:10px 0;word-break:break-all">${e.message}<br><br>${(e.stack||'').split('\n').slice(0,3).join('<br>')}</p><button onclick="location.reload()" style="margin-top:12px;padding:10px 20px;border:1px solid rgba(180,160,255,0.3);border-radius:10px;background:rgba(125,223,239,0.1);color:#7ddfef;cursor:pointer;font-size:14px">Перезагрузить</button></div>`;
